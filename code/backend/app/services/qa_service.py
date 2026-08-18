@@ -703,11 +703,14 @@ def _persist_messages(
         with get_conn() as conn:
             with conn.cursor() as cur:
                 # user 消息
+                # created_at 显式用 clock_timestamp() (实际墙钟时间), 不能用默认 now()——
+                # now() 是事务开始时间, 同事务里 user/assistant 两条消息会拿到相同时间戳,
+                # list_messages 按 created_at ASC 排序时顺序不稳定, 出现 assistant 排在 user 前面。
                 cur.execute(
                     """
                     INSERT INTO knowledge.assistant_message
-                        (session_id, role, content, tool_calls, citations, referenced_chunk_ids, referenced_point_ids)
-                    VALUES (%s, 'user', %s, '[]'::jsonb, '[]'::jsonb, '{}'::uuid[], '{}'::uuid[])
+                        (session_id, role, content, tool_calls, citations, referenced_chunk_ids, referenced_point_ids, created_at)
+                    VALUES (%s, 'user', %s, '[]'::jsonb, '[]'::jsonb, '{}'::uuid[], '{}'::uuid[], clock_timestamp())
                     """,
                     (session_id, user_msg),
                 )
@@ -735,8 +738,8 @@ def _persist_messages(
                     """
                     INSERT INTO knowledge.assistant_message
                         (session_id, role, content, tool_calls, citations,
-                         referenced_chunk_ids, referenced_point_ids, optimization_plan)
-                    VALUES (%s, 'assistant', %s, %s, %s, %s::uuid[], %s::uuid[], %s)
+                         referenced_chunk_ids, referenced_point_ids, optimization_plan, created_at)
+                    VALUES (%s, 'assistant', %s, %s, %s, %s::uuid[], %s::uuid[], %s, clock_timestamp())
                     RETURNING id
                     """,
                     (

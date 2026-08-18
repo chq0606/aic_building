@@ -160,10 +160,10 @@ export const useAiStore = defineStore('ai', () => {
   })
 
   // ---- actions: 抽屉 ----
-  function openDrawer() {
+  async function openDrawer() {
     drawerOpen.value = true
     if (sessions.value.length === 0) {
-      loadSessions().catch(() => { /* 错误已在 loadSessions 里提示 */ })
+      await loadSessions()
     }
     if (!currentSessionId.value && sessions.value.length > 0) {
       selectSession(sessions.value[0].id).catch(() => {})

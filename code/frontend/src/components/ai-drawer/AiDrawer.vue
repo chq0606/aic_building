@@ -19,15 +19,17 @@
 // ============================================================================
 
 import { computed, nextTick, ref, watch } from 'vue'
-import { Plus, X, Sparkles, FileText } from 'lucide-vue-next'
+import { Plus, X, Sparkles, FileText, History } from 'lucide-vue-next'
 import { useAiStore } from '@/stores/ai'
 import ChatList from './ChatList.vue'
+import SessionList from './SessionList.vue'
 import QuickQuestions from './QuickQuestions.vue'
 import ContextIndicator from './ContextIndicator.vue'
 
 const ai = useAiStore()
 
 const inputValue = ref('')
+const showSessions = ref(false)
 const scrollContainer = ref<HTMLElement | null>(null)
 
 const isMobile = computed(() => window.innerWidth < 768)
@@ -57,6 +59,11 @@ async function newSession() {
   ai.currentSessionId = null
   ai.messages = []
   inputValue.value = ''
+  showSessions.value = false
+}
+
+function onSelectSession() {
+  showSessions.value = false
 }
 
 // 流式消息变化时自动滚到底
@@ -114,6 +121,14 @@ function onQuickQuestion(q: string) {
         <div class="ai-header__actions">
           <button
             class="ai-header__btn"
+            title="历史会话"
+            :class="{ 'ai-header__btn--active': showSessions }"
+            @click="showSessions = !showSessions"
+          >
+            <History :size="16" />
+          </button>
+          <button
+            class="ai-header__btn"
             title="新建会话"
             :disabled="ai.isStreaming"
             @click="newSession"
@@ -131,7 +146,8 @@ function onQuickQuestion(q: string) {
 
       <!-- ===================== 消息列表 ===================== -->
       <div ref="scrollContainer" class="ai-body">
-        <ChatList />
+        <SessionList v-if="showSessions" @select="onSelectSession" />
+        <ChatList v-else />
       </div>
 
       <!-- ===================== 快问 + 输入框 ===================== -->
@@ -226,6 +242,12 @@ function onQuickQuestion(q: string) {
     transition: all $transition-base;
 
     &:hover:not(:disabled) {
+      border-color: $color-amber;
+      color: $color-amber;
+      background: $color-amber-soft;
+    }
+
+    &--active {
       border-color: $color-amber;
       color: $color-amber;
       background: $color-amber-soft;
