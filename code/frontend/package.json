@@ -1,0 +1,42 @@
+{
+  "name": "aic-building-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "type-check": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@vueuse/core": "^11.3.0",
+    "ant-design-vue": "^4.2.6",
+    "axios": "^1.7.9",
+    "cesium": "^1.122.0",
+    "dayjs": "^1.11.13",
+    "echarts": "^5.5.1",
+    "lucide-vue-next": "^0.460.0",
+    "markdown-it": "^14.3.0",
+    "pinia": "^2.2.6",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^22.10.1",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/test-utils": "^2.4.11",
+    "jsdom": "^25.0.1",
+    "sass": "^1.71.0",
+    "typescript": "~5.6.3",
+    "unplugin-vue-components": "^0.27.5",
+    "vite": "^6.0.3",
+    "vite-plugin-static-copy": "^2.1.0",
+    "vitest": "^2.1.8",
+    "vue-tsc": "^2.1.10"
+  },
+  "packageManager": "pnpm@11.15.0"
+}

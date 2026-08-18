@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>节能方案报告 - {{ building_name }}</title>
+<style>
+  /* === 字体 === */
+  @page {
+    size: A4;
+    margin: 18mm 16mm 20mm 16mm;
+    @bottom-center {
+      content: "第 " counter(page) " / " counter(pages) " 页";
+      font-size: 9pt;
+      color: #8a8580;
+    }
+  }
+  @page :first {
+    margin: 0;
+  }
+
+  body {
+    font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Helvetica Neue", sans-serif;
+    color: {{ color_text }};
+    font-size: 10.5pt;
+    line-height: 1.65;
+    margin: 0;
+  }
+
+  /* === 封面 === */
+  .cover {
+    height: 297mm;
+    background: linear-gradient(180deg, {{ color_paper }} 0%, #fff 50%);
+    padding: 50mm 20mm;
+    page-break-after: always;
+    position: relative;
+  }
+  .cover__badge {
+    display: inline-block;
+    background: {{ color_amber }};
+    color: #fff;
+    padding: 4px 14px;
+    font-size: 10pt;
+    font-weight: 600;
+    border-radius: 2px;
+    letter-spacing: 2px;
+    margin-bottom: 30mm;
+  }
+  .cover__title {
+    font-size: 32pt;
+    font-weight: 700;
+    color: {{ color_text }};
+    line-height: 1.3;
+    margin-bottom: 8mm;
+  }
+  .cover__subtitle {
+    font-size: 14pt;
+    color: {{ color_amber_deep }};
+    font-weight: 500;
+    margin-bottom: 60mm;
+  }
+  .cover__meta {
+    font-size: 10pt;
+    color: #8a8580;
+    line-height: 2;
+  }
+  .cover__meta-row {
+    display: flex;
+    border-bottom: 1px dashed {{ color_border }};
+    padding: 3mm 0;
+  }
+  .cover__meta-label {
+    width: 30mm;
+    color: {{ color_amber_deep }};
+    font-weight: 500;
+  }
+  .cover__footer {
+    position: absolute;
+    bottom: 20mm;
+    left: 20mm;
+    right: 20mm;
+    font-size: 8pt;
+    color: #b0aaa0;
+    border-top: 1px solid {{ color_border }};
+    padding-top: 4mm;
+    text-align: center;
+  }
+
+  /* === 段落 === */
+  .section {
+    margin-bottom: 12mm;
+    page-break-inside: avoid;
+  }
+  .section__title {
+    font-size: 14pt;
+    font-weight: 700;
+    color: {{ color_text }};
+    border-left: 4px solid {{ color_amber }};
+    padding-left: 8px;
+    margin: 0 0 6mm 0;
+    line-height: 1.4;
+  }
+  .section__title-en {
+    display: inline-block;
+    font-size: 9pt;
+    color: #b0aaa0;
+    margin-left: 6px;
+    font-weight: 400;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .section__sub {
+    font-size: 9pt;
+    color: #8a8580;
+    margin-top: -4mm;
+    margin-bottom: 4mm;
+  }
+
+  /* === Summary === */
+  .summary-box {
+    background: {{ color_paper }};
+    border-left: 3px solid {{ color_amber }};
+    padding: 6mm 8mm;
+    border-radius: 2px;
+    font-size: 11pt;
+    line-height: 1.8;
+  }
+
+  /* === 表格通用 === */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+    margin: 4mm 0;
+  }
+  th {
+    background: {{ color_paper }};
+    color: {{ color_amber_deep }};
+    text-align: left;
+    padding: 3mm 4mm;
+    border-bottom: 2px solid {{ color_amber }};
+    font-weight: 600;
+  }
+  td {
+    padding: 3mm 4mm;
+    border-bottom: 1px solid {{ color_border }};
+    vertical-align: top;
+  }
+  tr:nth-child(even) td {
+    background: #faf9f6;
+  }
+
+  /* === 严重度徽章 === */
+  .severity {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 8px;
+    font-size: 8pt;
+    font-weight: 600;
+  }
+  .severity-high {
+    background: {{ color_red }};
+    color: #fff;
+  }
+  .severity-medium {
+    background: {{ color_orange }};
+    color: #fff;
+  }
+  .severity-low {
+    background: {{ color_green }};
+    color: #fff;
+  }
+  .difficulty-easy {
+    background: #e6f4ea;
+    color: {{ color_green }};
+  }
+  .difficulty-medium {
+    background: #fff4e0;
+    color: {{ color_orange }};
+  }
+  .difficulty-hard {
+    background: #fde9e9;
+    color: {{ color_red }};
+  }
+
+  /* === 措施数字 === */
+  .num {
+    color: {{ color_amber_deep }};
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* === 优先级 === */
+  .priority {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 4mm;
+    padding: 4mm 5mm;
+    background: {{ color_paper }};
+    border-radius: 2px;
+    border-left: 3px solid {{ color_amber }};
+  }
+  .priority__rank {
+    width: 10mm;
+    height: 10mm;
+    background: {{ color_amber }};
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12pt;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-right: 4mm;
+  }
+  .priority__body {
+    flex: 1;
+  }
+  .priority__name {
+    font-size: 11pt;
+    font-weight: 600;
+    color: {{ color_text }};
+    margin-bottom: 2mm;
+  }
+  .priority__reason {
+    font-size: 9pt;
+    color: #6a6660;
+    line-height: 1.6;
+  }
+
+  /* === 图表 === */
+  .chart {
+    margin: 4mm 0;
+    text-align: center;
+  }
+  .chart img {
+    max-width: 100%;
+    border: 1px solid {{ color_border }};
+    border-radius: 2px;
+  }
+  .chart__caption {
+    font-size: 9pt;
+    color: #8a8580;
+    margin-top: 2mm;
+  }
+
+  /* === 引用 === */
+  .clause {
+    background: #faf9f6;
+    border: 1px solid {{ color_border }};
+    border-radius: 2px;
+    padding: 4mm 5mm;
+    margin: 3mm 0;
+    font-size: 9pt;
+  }
+  .clause__header {
+    color: {{ color_amber_deep }};
+    font-weight: 600;
+    margin-bottom: 2mm;
+    font-size: 9.5pt;
+  }
+  .clause__text {
+    color: #4a4a4a;
+    line-height: 1.7;
+    font-style: italic;
+  }
+
+  /* === 工具调用附录 === */
+  .tool-list {
+    font-size: 9pt;
+    color: #6a6660;
+  }
+  .tool-item {
+    padding: 2mm 0;
+    border-bottom: 1px dashed {{ color_border }};
+  }
+  .tool-item:last-child {
+    border-bottom: none;
+  }
+  .tool-name {
+    color: {{ color_amber_deep }};
+    font-weight: 600;
+  }
+
+  /* === 数据卡 === */
+  .data-card {
+    display: flex;
+    gap: 4mm;
+    margin: 4mm 0;
+  }
+  .data-card__item {
+    flex: 1;
+    background: {{ color_paper }};
+    padding: 4mm 5mm;
+    border-radius: 2px;
+    border-left: 3px solid {{ color_amber }};
+  }
+  .data-card__label {
+    font-size: 8pt;
+    color: #8a8580;
+    margin-bottom: 2mm;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .data-card__value {
+    font-size: 14pt;
+    color: {{ color_text }};
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .data-card__unit {
+    font-size: 9pt;
+    color: #8a8580;
+    font-weight: 400;
+    margin-left: 2px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== 封面 ===================== -->
+<section class="cover">
+  <div class="cover__badge">节能优化方案</div>
+  <div class="cover__title">建筑能耗<br>节能优化报告</div>
+  <div class="cover__subtitle">{{ building_name }}</div>
+
+  <div class="cover__meta">
+    <div class="cover__meta-row">
+      <span class="cover__meta-label">报告对象</span>
+      <span>{{ building_name }}</span>
+    </div>
+    {% if park_overview %}
+    <div class="cover__meta-row">
+      <span class="cover__meta-label">园区规模</span>
+      <span>{{ park_overview.building_count }} 栋楼, 总面积 {{ park_overview.total_kwh | round(1) }} kWh, 平均 EUI {{ park_overview.avg_eui | round(2) if park_overview.avg_eui else '—' }} kWh/m²</span>
+    </div>
+    {% endif %}
+    <div class="cover__meta-row">
+      <span class="cover__meta-label">报告日期</span>
+      <span>{{ date }}</span>
+    </div>
+    <div class="cover__meta-row">
+      <span class="cover__meta-label">生成系统</span>
+      <span>{{ app_name }} v{{ app_version }}</span>
+    </div>
+  </div>
+
+  <div class="cover__footer">
+    本报告由 AI 能效诊断引擎基于建筑能耗数据 + 国家标准条款综合生成, 仅供节能改造决策参考。
+    实际改造方案需结合现场勘察与设备实测数据综合判断。
+  </div>
+</section>
+
+<!-- ===================== 1. 整体评价 ===================== -->
+<section class="section">
+  <h2 class="section__title">
+    一、整体评价
+    <span class="section__title-en">Overview</span>
+  </h2>
+  <div class="summary-box">
+    {{ summary }}
+  </div>
+
+  {% if park_overview %}
+  <div class="data-card">
+    <div class="data-card__item">
+      <div class="data-card__label">建筑数</div>
+      <div class="data-card__value">{{ park_overview.building_count }}<span class="data-card__unit">栋</span></div>
+    </div>
+    <div class="data-card__item">
+      <div class="data-card__label">总能耗</div>
+      <div class="data-card__value">{{ park_overview.total_kwh | round(1) }}<span class="data-card__unit">kWh</span></div>
+    </div>
+    <div class="data-card__item">
+      <div class="data-card__label">平均 EUI</div>
+      <div class="data-card__value">{{ park_overview.avg_eui | round(2) if park_overview.avg_eui else '—' }}<span class="data-card__unit">kWh/m²</span></div>
+    </div>
+    <div class="data-card__item">
+      <div class="data-card__label">异常数</div>
+      <div class="data-card__value">{{ park_overview.anomaly_count }}<span class="data-card__unit">条</span></div>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<!-- ===================== 2. 问题清单 ===================== -->
+{% if problems %}
+<section class="section">
+  <h2 class="section__title">
+    二、主要问题
+    <span class="section__title-en">Key Problems</span>
+  </h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 12mm">#</th>
+        <th style="width: 60mm">问题描述</th>
+        <th>证据依据</th>
+        <th style="width: 20mm">严重度</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in problems %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ p.problem_desc }}</td>
+        <td>{{ p.evidence_ref }}</td>
+        <td>
+          <span class="severity severity-{{ p.severity }}">{{ p.severity | upper }}</span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<!-- ===================== 3. 节能措施 ===================== -->
+{% if measures %}
+<section class="section">
+  <h2 class="section__title">
+    三、节能措施清单
+    <span class="section__title-en">Energy Saving Measures</span>
+  </h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 12mm">#</th>
+        <th style="width: 40mm">措施名称</th>
+        <th style="width: 22mm">节能量 (kWh)</th>
+        <th style="width: 20mm">CO₂ 减排 (kg)</th>
+        <th style="width: 18mm">回收期 (月)</th>
+        <th style="width: 16mm">难度</th>
+        <th>条款引用</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in measures %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ m.measure_name }}</td>
+        <td class="num">{{ m.saved_kwh | round(1) }}</td>
+        <td class="num">{{ m.saved_co2 | round(1) }}</td>
+        <td class="num">{{ m.payback_months | round(1) }}</td>
+        <td>
+          <span class="severity difficulty-{{ m.difficulty }}">{{ m.difficulty }}</span>
+        </td>
+        <td>{{ m.clause_ref }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<!-- ===================== 4. 优先级建议 ===================== -->
+{% if priorities %}
+<section class="section">
+  <h2 class="section__title">
+    四、优先级建议
+    <span class="section__title-en">Priority Recommendations</span>
+  </h2>
+  <div class="section__sub">按"节能率 ÷ 实施难度"综合排序的 Top 3 优先实施建议</div>
+
+  {% for p in priorities %}
+  <div class="priority">
+    <div class="priority__rank">{{ loop.index }}</div>
+    <div class="priority__body">
+      <div class="priority__name">{{ p.measure_name }}</div>
+      <div class="priority__reason">{{ p.reason }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<!-- ===================== 附录 A: 数据图表 ===================== -->
+<section class="section">
+  <h2 class="section__title">
+    附录 A · 数据图表
+    <span class="section__title-en">Data Visualization</span>
+  </h2>
+
+  {% if eui_chart_b64 %}
+  <div class="chart">
+    <img src="data:image/png;base64,{{ eui_chart_b64 }}" alt="能耗趋势图">
+    <div class="chart__caption">图 A-1 · {{ building_name }} 能耗趋势</div>
+  </div>
+  {% else %}
+  <div class="chart__caption">能耗时序数据未在工具调用中获取, 跳过趋势图。</div>
+  {% endif %}
+
+  {% if anomaly_chart_b64 %}
+  <div class="chart">
+    <img src="data:image/png;base64,{{ anomaly_chart_b64 }}" alt="异常分布图">
+    <div class="chart__caption">图 A-2 · 异常事件分布</div>
+  </div>
+  {% else %}
+  <div class="chart__caption">异常事件数据未在工具调用中获取, 跳过分布图。</div>
+  {% endif %}
+</section>
+
+<!-- ===================== 附录 B: 引用条款 ===================== -->
+{% if document_refs %}
+<section class="section">
+  <h2 class="section__title">
+    附录 B · 引用条款原文
+    <span class="section__title-en">Cited Clauses</span>
+  </h2>
+  <div class="section__sub">节能措施建议所引用的国家标准 / 行业标准条款原文</div>
+
+  {% for ref in document_refs %}
+  <div class="clause">
+    <div class="clause__header">
+      {% if ref.standard_no %}{{ ref.standard_no }}{% endif %}
+      {% if ref.section_title %} · {{ ref.section_title }}{% endif %}
+    </div>
+    <div class="clause__text">{{ ref.content_snippet }}</div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<!-- ===================== 附录 C: 工具调用审计 ===================== -->
+{% if tool_calls %}
+<section class="section">
+  <h2 class="section__title">
+    附录 C · 工具调用审计
+    <span class="section__title-en">Tool Call Audit</span>
+  </h2>
+  <div class="section__sub">本报告基于以下工具调用结果生成, 数据可追溯</div>
+
+  <div class="tool-list">
+    {% for tc in tool_calls %}
+    <div class="tool-item">
+      <span class="tool-name">{{ tc.name }}</span>
+      <span style="color: #b0aaa0; margin: 0 4px;">·</span>
+      <span>参数: {{ tc.arguments }}</span>
+      <span style="color: #b0aaa0; margin: 0 4px;">·</span>
+      <span style="color: {% if tc.ok %}{{ color_green }}{% else %}{{ color_red }}{% endif %};">
+        {{ "成功" if tc.ok else "失败" }}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+</body>
+</html>

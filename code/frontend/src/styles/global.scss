@@ -1,0 +1,235 @@
+// ============================================================================
+// 全局样式
+// ----------------------------------------------------------------------------
+// CSS reset + 基础样式 + 字体设置 + 滚动条美化
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+// CSS Reset
+// ---------------------------------------------------------------------------
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+}
+
+html {
+  font-size: 16px;  // 基准字号, 1rem = 16px
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: $font-sans;
+  font-size: $fs-base;
+  font-weight: $fw-regular;
+  line-height: $lh-normal;
+  color: $color-concrete;
+  background-color: $color-paper;
+  // 工程图纸感的极淡纹理 (subtle paper texture)
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(90, 107, 124, 0.015) 1px, transparent 1px),
+    radial-gradient(circle at 75% 75%, rgba(212, 155, 59, 0.010) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-position: 0 0, 24px 24px;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+// ---------------------------------------------------------------------------
+// 排版
+// ---------------------------------------------------------------------------
+h1, h2, h3, h4, h5, h6 {
+  font-family: $font-sans;
+  font-weight: $fw-semibold;
+  color: $color-concrete;
+  line-height: $lh-tight;
+  letter-spacing: -0.01em;
+}
+
+h1 { font-size: $fs-3xl; font-weight: $fw-bold; }
+h2 { font-size: $fs-2xl; }
+h3 { font-size: $fs-xl; }
+h4 { font-size: $fs-lg; }
+h5 { font-size: $fs-md; }
+h6 { font-size: $fs-base; }
+
+p {
+  margin-bottom: $space-4;
+  line-height: $lh-relaxed;
+}
+
+a {
+  color: $color-amber;
+  text-decoration: none;
+  transition: color $transition-base;
+  &:hover { color: $color-amber-hover; }
+  &:focus-visible { outline: 2px solid $color-amber; outline-offset: 2px; }
+}
+
+small { font-size: $fs-sm; color: $color-text-secondary; }
+
+strong { font-weight: $fw-semibold; }
+
+code, kbd, pre, samp {
+  font-family: $font-mono;
+  font-size: 0.92em;
+}
+
+// 数字默认用等宽字体 (能耗数据对齐)
+[data-numeric], .numeric {
+  font-family: $font-mono;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+// ---------------------------------------------------------------------------
+// 表单基础
+// ---------------------------------------------------------------------------
+input, button, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+// 移除 IE 默认清空按钮
+input::-ms-clear { display: none; }
+
+// 焦点环统一
+:focus-visible {
+  outline: 2px solid $color-amber;
+  outline-offset: 2px;
+}
+
+// ---------------------------------------------------------------------------
+// 列表
+// ---------------------------------------------------------------------------
+ul, ol {
+  padding-left: $space-5;
+  margin-bottom: $space-4;
+}
+
+// ---------------------------------------------------------------------------
+// 滚动条美化 (WebKit + Firefox)
+// ---------------------------------------------------------------------------
+* {
+  scrollbar-width: thin;
+  scrollbar-color: $gray-400 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: $gray-300;
+  border-radius: $radius-pill;
+  &:hover { background: $gray-400; }
+}
+::-webkit-scrollbar-thumb:vertical {
+  border-left: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+// ---------------------------------------------------------------------------
+// 工具类
+// ---------------------------------------------------------------------------
+
+// 文字省略 (单行)
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 文字省略 (多行, 默认 2 行)
+.text-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// 卡片基础样式 (复用度高的)
+.surface-card {
+  background: $color-card;
+  border: 1px solid $gray-200;
+  border-radius: $radius-md;
+  box-shadow: $shadow-sm;
+  transition: box-shadow $transition-base, border-color $transition-base;
+}
+
+.surface-card-hover {
+  @extend .surface-card;
+  cursor: pointer;
+  &:hover {
+    box-shadow: $shadow-md;
+    border-color: $gray-300;
+  }
+}
+
+// 状态色
+.text-concrete { color: $color-concrete; }
+.text-stone    { color: $color-stone; }
+.text-amber    { color: $color-amber; }
+.text-green    { color: $color-green; }
+.text-red      { color: $color-red; }
+.text-secondary { color: $color-text-secondary; }
+
+.bg-paper { background-color: $color-paper; }
+.bg-card  { background-color: $color-card; }
+.bg-amber-soft { background-color: $color-amber-soft; }
+.bg-green-soft { background-color: $color-green-soft; }
+
+// ---------------------------------------------------------------------------
+// 动画
+// ---------------------------------------------------------------------------
+
+// 尊重 prefers-reduced-motion
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+// 渐入动画 (路由切换 / 抽屉打开)
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn $transition-base ease-out;
+}
+
+// 脉动动画 (异常 halo)
+@keyframes pulse-amber {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 155, 59, 0.4); }
+  50%      { box-shadow: 0 0 0 8px rgba(212, 155, 59, 0); }
+}
+
+.pulse-amber {
+  animation: pulse-amber 2s ease-in-out infinite;
+}

@@ -1,0 +1,15 @@
+# Docker build context 排除列表 - frontend
+
+# node_modules (容器内重新装, 不 COPY 本机的)
+node_modules/
+
+# 构建产物 (容器内重新 build)
+dist/
+
+# IDE 配置
+.vscode/
+.idea/
+
+# 操作系统垃圾
+.DS_Store
+Thumbs.db

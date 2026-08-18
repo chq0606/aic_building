@@ -1,0 +1,19 @@
+# ============================================================================
+# docker-compose.local.yml - 本地开发覆盖 (保留 HF 模型缓存)
+# ----------------------------------------------------------------------------
+# 用法:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+#
+# 所有服务 (postgres/backend/frontend) 都用 docker 的, 数据走 docker PG。
+# 这个文件只加了一个 volume: HuggingFace 模型缓存, 避免每次重建容器重下 BGE。
+# ============================================================================
+
+services:
+  backend:
+    volumes:
+      - ./code/backend/storage:/app/storage
+      - ./code/backend/data:/app/data
+      - ./code/backend/logs:/app/logs
+      - ./extracted_data:/app/extracted_data:ro
+      # 挂本机 HF 缓存, BGE 模型已在本地, 不用重下 1.3GB
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface

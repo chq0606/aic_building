@@ -1,0 +1,81 @@
+# ============================================================================
+# .gitignore - AIC Building 项目
+# ============================================================================
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+build/
+dist/
+
+# ---- Node / Frontend ----
+node_modules/
+dist/
+.pnpm-store/
+*.log
+.vite/
+.eslintcache
+
+# ---- IDE ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ---- 项目数据 (不进 git) ----
+# PostgreSQL 数据卷
+data/postgres/
+
+# 上传文件 (CSV / PDF / 照片)
+code/backend/data/uploads/
+code/backend/data/imports/
+
+# 模型权重 (TripoSplat 3.6GB, BGE 1GB)
+code/backend/storage/triposplat/ckpts/
+code/backend/storage/huggingface/
+code/backend/storage/knowledge/
+code/backend/storage/reconstruction/
+code/backend/storage/uploads/
+
+# 日志
+code/backend/logs/
+*.log
+
+# ---- 配置 (含密钥, 不进 git) ----
+.env
+.env.local
+.env.production
+
+# ---- 临时 / 调试 ----
+*.tmp
+*.bak
+*.orig
+.cache/
+tmp/
+
+# ---- 原始数据 / 测试文件 (不进 git) ----
+dataset/
+test_pdfs/
+extracted_data/
+code/backend/storage/tripoosplat/

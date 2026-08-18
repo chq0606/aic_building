@@ -1,0 +1,46 @@
+# ============================================================================
+# backend/Dockerfile.triposplat - GPU 镜像 (Step 12 单图重建 worker 专用)
+# ----------------------------------------------------------------------------
+# TripoSplat 推理需要 CUDA, 走 nvidia/cuda 基础镜像.
+# torch 走 cu130 (CUDA 13.0) 版, 跟本机 building_aic env 验证过的版本对齐.
+#
+# 镜像不含 3.6GB TripoSplat 权重文件 (太大, 镜像会爆).
+# docker-compose 把 ./code/backend/storage/triposplat 挂载到容器, 跑前
+# 先跑 scripts/download_triposplat_ckpts.sh 下权重到这个目录.
+#
+# 复用对象: 仅 triposplat_worker (Step 12 重建)
+# ============================================================================
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+
+# 装系统依赖: python3.11 + pip + libgl1 (easyocr) + libglib (matplotlib/opencv)
+# Ubuntu 22.04 默认 Python 3.10, 装 3.11 要加 deadsnakes PPA
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa -y \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 python3.11-venv python3.11-dev python3-pip \
+    libgl1 libglib2.0-0 libpq5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3.11 /usr/bin/python \
+    && ln -sf /usr/bin/python3.11 /usr/bin/python3
+
+WORKDIR /build
+COPY code/backend/requirements.txt ./
+
+# 先装 GPU 版 torch (cu130), 覆盖 PyPI 默认 CPU 版
+# requirements.txt 里没显式列 torch, 这里补上避免 dependency resolver 拉 CPU 版
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu130
+
+# 再装其他依赖
+RUN pip install --no-cache-dir -r requirements.txt \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+WORKDIR /app
+COPY code/backend/ /app/
+
+ENV PYTHONUNBUFFERED=1 \
+    TZ=Asia/Shanghai \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HF_HOME=/app/storage/huggingface
+
+CMD ["python", "-m", "worker.triposplat_worker"]

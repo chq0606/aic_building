@@ -1,0 +1,55 @@
+# Python 依赖锁版本，避免后续 step 装新库时版本漂移导致回归。
+# 本文件覆盖 Step 01（后端骨架）所需依赖；后续 step 追加依赖时往下续，
+# 不要重排已有行，方便 code review 时一眼看出新增了什么。
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+psycopg2-binary==2.9.10
+loguru==0.7.3
+
+# 认证模块：bcrypt 哈希 + python-jose 签 JWT
+# passlib 提供 bcrypt 哈希的统一接口（自动处理盐值/版本协商）
+# email-validator 给 pydantic 的 EmailStr 用
+bcrypt==4.2.1
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.20
+email-validator==2.2.0
+
+# 客户数据上传:宽表转长表 + Excel 多 sheet 支持
+# pandas 做 melt 操作,openpyxl 读 .xlsx
+pandas==2.2.3
+openpyxl==3.1.5
+
+# 知识库导入: PyMuPDF 解析 PDF + EasyOCR 走扫描件 OCR + sentence-transformers 跑 BGE embedding
+# torch 走 GPU 版本 (cu130), 单独装: pip install torch --index-url https://download.pytorch.org/whl/cu130
+# 国内下 BGE 模型走镜像: HF_ENDPOINT=https://hf-mirror.com
+pymupdf==1.28.0
+easyocr==1.7.2
+sentence-transformers==5.6.0
+jieba==0.42.1
+numpy==2.4.6
+
+# Step 18 全局 AI 抽屉: weasyprint HTML->PDF + matplotlib 服务端图表
+# Windows 跑 weasyprint 前要在 pdf_export_service.py 顶部把 <conda_env>/Library/bin
+# 注入 PATH (libpango/libgio 依赖 DLL)。
+weasyprint==69.0
+matplotlib==3.11.1
+jinja2==3.1.6
+markdown-it-py==4.2.0
+requests==2.34.2
+
+# Step 19 能耗预测
+# Prophet 1.3.0 自带预编译 CmdStan-2.37.0 (在 prophet/stan_model/ 下), 不用本地编译。
+# 老版 1.1.5 不兼容 numpy 2.x (np.float_ 已删) 且要手动装 CmdStan, 不要降级。
+# statsmodels 给 Holt-Winters / SARIMAX 备用, 一期不主用, 留着以后扩展。
+prophet==1.3.0
+statsmodels==0.14.4
+
+# Step 20 测试依赖
+# pytest 跑 tests/ 目录的 7 个 test_*.py
+# httpx 给 FastAPI TestClient 用 (TestClient 内部走 ASGI transport, 需要 httpx)
+pytest==8.3.4
+httpx==0.28.1

@@ -1,0 +1,40 @@
+# Docker build context 排除列表
+# 避免大文件 / 缓存 / 数据被 COPY 进镜像
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 虚拟环境 (容器内不重复装)
+.venv/
+venv/
+env/
+
+# 日志和运行时数据 (容器挂 volume 用, 不要 COPY)
+logs/
+data/uploads/
+data/imports/
+storage/knowledge/
+storage/triposplat/ckpts/
+storage/reconstruction/
+storage/uploads/
+storage/huggingface/
+
+# 测试数据 (测试用 demo 数据由 conftest.py 灌, 不进镜像)
+tests/
+
+# IDE 配置
+.vscode/
+.idea/
+*.swp
+
+# 操作系统垃圾
+.DS_Store
+Thumbs.db
