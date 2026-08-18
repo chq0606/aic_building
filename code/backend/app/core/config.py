@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     # 应用基础
     app_name: str = "建筑能耗分析与节能优化平台"
-    app_version: str = "1.0.0"
+    app_version: str = "2.0.0"
     env: str = "dev"
     host: str = "0.0.0.0"
     port: int = 8000

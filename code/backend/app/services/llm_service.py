@@ -535,29 +535,3 @@ def chat_stream_with_tools(
         raw_content=accumulated_content,
         usage=usage,
     )
-
-
-# ---------------------------------------------------------------------------
-# 工具: ping
-# ---------------------------------------------------------------------------
-
-
-def ping(api_key: str | None = None, user_id: str | None = None) -> tuple[bool, str]:
-    """健康探测, 发一条 max_tokens=5 的消息看 Key 是否可用。
-
-    Step 17 的 settings_service.test_glm_connection 是给设置页用的 (要带
-    明确的错误诊断信息返给用户看)。这里 ping 是给 qa_service 在调主流程前
-    快速探测用的, 返 (ok, message) 简化版。
-    """
-    try:
-        resp = chat(
-            messages=[{"role": "user", "content": "ping"}],
-            max_tokens=5,
-            api_key=api_key,
-            user_id=user_id,
-        )
-        return True, f"OK, 模型返: {resp.content[:20]}"
-    except GlmApiKeyError as e:
-        return False, str(e)
-    except GlmApiError as e:
-        return False, str(e)

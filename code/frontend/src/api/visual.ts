@@ -185,25 +185,6 @@ export function buildSplatTilesResource(buildingId: string, modelId: string): st
   return `/api/v1/buildings/${buildingId}/visual-models/${modelId}/splat-tiles/tileset.json`
 }
 
-/**
- * 取 splat .ply 文件的 blob URL (降级渲染用)。
- *
- * 当 has_tiles=false (老记录 / 3D Tiles 转换失败) 时, 前端 BuildingSplat 走
- * .ply 静态点云渲染: fetch .ply -> 解析 17 字段顶点 -> PointPrimitive 渲染。
- * 视觉效果比 3D Tiles 差 (没有 LOD / 没有真椭球 splat), 但保证有画面。
- */
-export async function fetchSplatPlyBlob(buildingId: string, modelId: string): Promise<Blob> {
-  const token = localStorage.getItem('aic_access_token')
-  const resp = await fetch(
-    `/api/v1/buildings/${buildingId}/visual-models/${modelId}/splat.ply`,
-    { headers: token ? { Authorization: `Bearer ${token}` } : undefined },
-  )
-  if (!resp.ok) {
-    throw new Error(`splat .ply 加载失败: ${resp.status} ${resp.statusText}`)
-  }
-  return resp.blob()
-}
-
 // ---------------------------------------------------------------------------
 // API 调用
 // ---------------------------------------------------------------------------
@@ -226,10 +207,6 @@ export const visualApi = {
       `/buildings/${buildingId}/visual-models/block`,
       payload,
     )
-  },
-
-  deleteVisualModel(buildingId: string, modelId: string) {
-    return api.delete<{ deleted_id: string }>(`/buildings/${buildingId}/visual-models/${modelId}`)
   },
 
   /** 更新建筑水平旋转角度 (Step 13)。前端 BuildingDetailDrawer 滑块拖动

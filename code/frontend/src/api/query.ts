@@ -1,35 +1,11 @@
 // ============================================================================
-// Query API - 园区总览 / 建筑列表 / 单楼时序 / 天气关联 / 能源构成
+// Query API - 建筑列表 / 单楼时序 / 天气关联 / 多楼对比
 // ----------------------------------------------------------------------------
-// BuildingDetailDrawer 用了 timeseries + composition,
-// Analysis 6 图表全部吃这里 (Ranking/Compare/EuiBaseline 用 listBuildings,
-// Compare 用 compareBuildings, WeatherCorrelation 用 buildingWeather + buildingTimeseries)
+// Analysis 图表吃这里: 建筑列表 (listSiteBuildings)、对比 (compareBuildings)、
+// 天气关联 (buildingWeather + buildingTimeseries)
 // ============================================================================
 
 import { api } from './client'
-
-export interface ParkOverview {
-  site_id: string
-  site_name: string
-  building_count: number
-  total_kwh: number
-  avg_eui: number
-  anomaly_count: number
-  yoy_pct: number | null
-  mom_pct: number | null
-}
-
-export interface BuildingSummary {
-  id: string
-  name: string
-  code: string
-  total_kwh: number
-  eui: number
-  anomaly_count: number
-  sqm: number
-  floors: number
-  primary_use?: string
-}
 
 // 后端 list_buildings 实际返的结构 (用真实字段名)
 export interface BuildingListResponse {
@@ -113,33 +89,7 @@ export interface BuildingWeather {
   points: WeatherReading[]
 }
 
-export interface EnergyCompositionItem {
-  type: string
-  kwh: number
-  pct: number
-}
-
-export interface BuildingEnergyComposition {
-  building_id: string
-  building_code: string
-  display_name: string
-  time_range: { start: string; end: string }
-  total_kwh: number
-  composition: EnergyCompositionItem[]
-}
-
 export const queryApi = {
-  parkOverview(siteId: string, params?: { start?: string; end?: string }) {
-    return api.get<ParkOverview>('/query/park/overview', {
-      params: { site_id: siteId, ...params },
-    })
-  },
-
-  // 旧接口保留向后兼容 (BuildingDetailDrawer 没用)
-  listBuildings(params?: { order_by?: string; limit?: number }) {
-    return api.get<BuildingSummary[]>('/query/buildings', { params })
-  },
-
   // 用这个 (返完整结构含 primary_use / sqm / eui_kwh_per_m2 真实字段)
   // 后端路径是 /query/buildings?site_id= (不是 /query/sites/{id}/buildings)
   listSiteBuildings(siteId: string, params?: {
@@ -176,9 +126,5 @@ export const queryApi = {
 
   buildingWeather(buildingId: string, params: { start?: string; end?: string }) {
     return api.get<BuildingWeather>(`/query/buildings/${buildingId}/weather`, { params })
-  },
-
-  buildingEnergyComposition(buildingId: string, params?: { start?: string; end?: string }) {
-    return api.get<BuildingEnergyComposition>(`/query/buildings/${buildingId}/energy-composition`, { params })
   },
 }

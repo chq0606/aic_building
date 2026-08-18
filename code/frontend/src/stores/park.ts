@@ -30,8 +30,6 @@ export const useParkStore = defineStore('park', () => {
   // ---- getters ----
   const buildings = computed<SceneBuilding[]>(() => scene.value?.buildings ?? [])
 
-  const buildingCount = computed(() => buildings.value.length)
-
   const hoveredBuilding = computed<SceneBuilding | null>(() => {
     if (!hoveredBuildingId.value) return null
     return buildings.value.find(b => b.building_id === hoveredBuildingId.value) ?? null
@@ -105,7 +103,6 @@ export const useParkStore = defineStore('park', () => {
     renderMode,
     // getters
     buildings,
-    buildingCount,
     hoveredBuilding,
     selectedBuilding,
     currentMetric,

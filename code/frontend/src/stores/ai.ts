@@ -121,10 +121,6 @@ export const useAiStore = defineStore('ai', () => {
   const error = ref<string | null>(null)
 
   // ---- getters ----
-  const currentSession = computed(() =>
-    sessions.value.find(s => s.id === currentSessionId.value) ?? null,
-  )
-
   const allMessages = computed(() => {
     // 已持久化的 + 当前流式中的
     if (streamingMessage.value) {
@@ -590,13 +586,6 @@ export const useAiStore = defineStore('ai', () => {
     return assistantApi.exportPdf(messageId)
   }
 
-  // ---- actions: 清空 ----
-
-  function clearStream() {
-    streamingMessage.value = null
-    isStreaming.value = false
-  }
-
   return {
     // state
     drawerOpen,
@@ -609,7 +598,6 @@ export const useAiStore = defineStore('ai', () => {
     loadingMessages,
     error,
     // getters
-    currentSession,
     allMessages,
     currentContext,
     quickQuestions,
@@ -624,6 +612,5 @@ export const useAiStore = defineStore('ai', () => {
     sendMessage,
     generateOptimization,
     exportPdf,
-    clearStream,
   }
 })

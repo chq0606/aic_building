@@ -4,7 +4,7 @@
 // ----------------------------------------------------------------------------
 // 结构:
 //   ┌─────────────────────────────────────────────────────────────────┐
-//   │ Header (56px): Logo │ Site │ TimeRange │ Metric │ Search │ User │
+//   │ Header (56px): Logo │ Site │ TimeRange │ Metric │ User │
 //   ├──────────┬──────────────────────────────────────────────────────┤
 //   │          │                                                      │
 //   │  Sider   │              Content (router-view)                  │
@@ -23,7 +23,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
   Building2, LayoutGrid, BarChart3, Database, Settings as SettingsIcon,
-  Search, ChevronLeft, ChevronRight, LogOut, User as UserIcon,
+  ChevronLeft, ChevronRight, LogOut, User as UserIcon,
   PanelLeftClose, PanelLeftOpen, Calendar as CalendarIcon, Check,
   Building, Plus,
 } from 'lucide-vue-next'
@@ -248,7 +248,7 @@ const LogoIcon = h(Building2, { size: 22, 'stroke-width': 2 })
             <component :is="() => LogoIcon" />
           </div>
           <div v-if="!collapsed" class="brand__text">
-            <div class="brand__name">AIC Building</div>
+            <div class="brand__name">Building</div>
             <div class="brand__sub">{{ context.metricLabel }} · {{ currentPresetLabel }}</div>
           </div>
         </div>
@@ -325,16 +325,6 @@ const LogoIcon = h(Building2, { size: 22, 'stroke-width': 2 })
       </div>
 
       <div class="app-header__right">
-        <a-input
-          class="search-input"
-          placeholder="搜索建筑 / 设备 / 文档..."
-          allow-clear
-        >
-          <template #prefix>
-            <Search :size="14" />
-          </template>
-        </a-input>
-
         <a-dropdown placement="bottomRight">
           <button class="user-btn">
             <a-avatar :size="32" class="user-avatar">
@@ -577,11 +567,6 @@ const LogoIcon = h(Building2, { size: 22, 'stroke-width': 2 })
   }
 }
 
-// 搜索框
-.search-input {
-  width: 220px;
-}
-
 // 用户按钮
 .user-btn {
   display: flex;
@@ -799,11 +784,7 @@ const LogoIcon = h(Building2, { size: 22, 'stroke-width': 2 })
   transform: translateY(-4px);
 }
 
-// 响应式: < 1200px 隐藏搜索框, < 960px 隐藏站点切换
-@media (max-width: 1200px) {
-  .search-input { display: none; }
-}
-
+// 响应式: < 960px 隐藏站点切换
 @media (max-width: 960px) {
   .app-header__center .ant-select { display: none; }
   .app-header__center .divider:first-child { display: none; }

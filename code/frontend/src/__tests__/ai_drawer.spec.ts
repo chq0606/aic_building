@@ -2,8 +2,8 @@
 // ai_drawer.spec.ts - AI 抽屉 (Step 18): session 管理 + 消息流转
 // ----------------------------------------------------------------------------
 // 测试要点:
-//   1. mock assistantApi 返 session + 消息
-//   2. createSession / listSessions / sendMessage API 调用正确
+//   1. mock assistant API 返 session + 消息
+//   2. createSession / listSessions / listMessages API 调用正确
 //   3. 数据结构对 (session.id / messages 列表)
 //
 // 不直接测 AiDrawer.vue DOM (AntD Drawer + 消息列表结构复杂, jsdom 下脆裂),
@@ -16,15 +16,11 @@ import { createPinia, setActivePinia } from 'pinia'
 const mockCreateSession = vi.fn()
 const mockListSessions = vi.fn()
 const mockListMessages = vi.fn()
-const mockSendMessage = vi.fn()
 
 vi.mock('@/api/assistant', () => ({
-  assistantApi: {
-    createSession: (...args: unknown[]) => mockCreateSession(...args),
-    listSessions: (...args: unknown[]) => mockListSessions(...args),
-    listMessages: (...args: unknown[]) => mockListMessages(...args),
-    sendMessage: (...args: unknown[]) => mockSendMessage(...args),
-  },
+  createSession: (...args: unknown[]) => mockCreateSession(...args),
+  listSessions: (...args: unknown[]) => mockListSessions(...args),
+  listMessages: (...args: unknown[]) => mockListMessages(...args),
 }))
 
 vi.mock('@/stores/auth', () => ({
@@ -78,8 +74,8 @@ describe('assistant API 数据流转', () => {
       message_count: 0,
     })
 
-    const { assistantApi } = await import('@/api/assistant')
-    const result = await assistantApi.createSession({ title: '测试会话' })
+    const { createSession } = await import('@/api/assistant')
+    const result = await createSession({ title: '测试会话' })
 
     expect(mockCreateSession).toHaveBeenCalledWith({ title: '测试会话' })
     expect(result.id).toBe('session-001')
@@ -95,8 +91,8 @@ describe('assistant API 数据流转', () => {
       total: 2,
     })
 
-    const { assistantApi } = await import('@/api/assistant')
-    const result = await assistantApi.listSessions()
+    const { listSessions } = await import('@/api/assistant')
+    const result = await listSessions()
 
     expect(result.items).toHaveLength(2)
     expect(result.total).toBe(2)
@@ -111,26 +107,12 @@ describe('assistant API 数据流转', () => {
       total: 2,
     })
 
-    const { assistantApi } = await import('@/api/assistant')
-    const result = await assistantApi.listMessages('session-001')
+    const { listMessages } = await import('@/api/assistant')
+    const result = await listMessages('session-001')
 
     expect(mockListMessages).toHaveBeenCalledWith('session-001')
     expect(result.items).toHaveLength(2)
     expect(result.items[0].role).toBe('user')
     expect(result.items[1].role).toBe('assistant')
-  })
-
-  it('sendMessage 调用 assistantApi', async () => {
-    mockSendMessage.mockResolvedValue({
-      user_message: { id: 'msg-1', role: 'user', content: '你好' },
-      assistant_message: { id: 'msg-2', role: 'assistant', content: '你好, 我是 AI 助手' },
-    })
-
-    const { assistantApi } = await import('@/api/assistant')
-    const result = await assistantApi.sendMessage('session-001', { content: '你好' })
-
-    expect(mockSendMessage).toHaveBeenCalled()
-    expect(result.user_message.role).toBe('user')
-    expect(result.assistant_message.role).toBe('assistant')
   })
 })

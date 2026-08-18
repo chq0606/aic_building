@@ -100,13 +100,13 @@ defineOptions({ name: 'AuthLayout' })
             <Building2 :size="28" :stroke-width="2" />
           </div>
           <div class="auth-brand__text">
-            <div class="auth-brand__title">AIC Building</div>
+            <div class="auth-brand__title">Building</div>
             <div class="auth-brand__sub">建筑能耗分析与节能优化平台</div>
           </div>
         </div>
 
         <h1 class="auth-headline">
-          AI 能效诊断<br />
+          AI能效分析<br />
           <span class="auth-headline__accent">让建筑更聪明</span>
         </h1>
 
@@ -138,7 +138,7 @@ defineOptions({ name: 'AuthLayout' })
         <RouterView />
       </div>
       <footer class="auth-form__footer">
-        <span>© 2026 AIC Building · 2026 全球校园 AI 算法精英大赛</span>
+        <span>© 2026 Building </span>
       </footer>
     </main>
   </div>

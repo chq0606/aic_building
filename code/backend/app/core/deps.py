@@ -3,7 +3,6 @@
 
 三个依赖按需挂:
 - get_current_user:校验登录态,返回 CurrentUser。所有需登录的接口都挂
-- get_current_tenant_id:轻量版,只要 tenant_id 的接口用,内部包了 get_current_user
 - require_write_access:写操作专用,demo 用户调到直接 403
 
 CurrentUser 把数据库查出来的字段缓存一份,后续业务代码不用再查库。
@@ -105,11 +104,6 @@ def get_current_user(
         username=row[2],
         is_demo=row[3],
     )
-
-
-def get_current_tenant_id(user: CurrentUser = Depends(get_current_user)) -> str:
-    """业务查询只需 tenant_id 的接口用这个,省得引整个 CurrentUser。"""
-    return user.tenant_id
 
 
 def require_write_access(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:

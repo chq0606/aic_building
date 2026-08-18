@@ -33,8 +33,3 @@ export function getEnergyMeta(type: string): EnergyMeta {
   return ENERGY_META[key] ?? { color: '#A8A294', label: type, shortLabel: type, icon: Droplet }
 }
 
-// 把能源类型数组转成 ECharts 调色板 (按能源在数组里的顺序)
-export function energyPalette(types: string[]): string[] {
-  return types.map(t => getEnergyMeta(t).color)
-}
-

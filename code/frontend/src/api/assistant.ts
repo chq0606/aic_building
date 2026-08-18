@@ -99,10 +99,6 @@ export async function listSessions(limit = 50): Promise<{ items: ChatSession[]; 
   return api.get('/assistant/sessions', { params: { limit } })
 }
 
-export async function getSessionDetail(id: string): Promise<ChatSession> {
-  return api.get<ChatSession>(`/assistant/sessions/${id}`)
-}
-
 export async function listMessages(sessionId: string, limit = 100): Promise<{ items: ChatMessage[]; total: number }> {
   return api.get(`/assistant/sessions/${sessionId}/messages`, { params: { limit } })
 }
@@ -110,14 +106,6 @@ export async function listMessages(sessionId: string, limit = 100): Promise<{ it
 // ---------------------------------------------------------------------------
 // 节能优化 + PDF
 // ---------------------------------------------------------------------------
-
-export async function getOptimizationPlan(messageId: string): Promise<{
-  message_id: string
-  has_plan: boolean
-  plan: OptimizationPlan
-}> {
-  return api.get(`/assistant/messages/${messageId}/optimization-plan`)
-}
 
 export async function exportPdf(messageId: string): Promise<Blob> {
   // 用 client 直接调, 因为要拿 raw blob 不能让 api 拦截器 unwrap

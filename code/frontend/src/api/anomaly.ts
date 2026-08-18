@@ -1,9 +1,9 @@
 // ============================================================================
 // Anomaly API - 异常事件查询 (异常 tab 数据源)
 // ----------------------------------------------------------------------------
-// 复用后端的 4 个 endpoint, 这里只封装用到的 2 个:
-//   GET /anomalies/buildings/{id}  单楼异常列表
-//   GET /anomalies/{id}/evidence   单条异常证据链
+// 复用后端 endpoint, 这里封装用到的 2 个:
+//   GET /anomalies/buildings/{id}      单楼异常列表
+//   GET /anomalies/sites/{id}/overview site 异常总览
 // ============================================================================
 
 import { api } from './client'
@@ -74,12 +74,6 @@ export const anomalyApi = {
     limit?: number
   }) {
     return api.get<BuildingAnomalyList>(`/anomalies/buildings/${buildingId}`, { params })
-  },
-
-  getAnomalyEvidence(anomalyId: string) {
-    return api.get<{ anomaly_id: string; evidence: Record<string, unknown> }>(
-      `/anomalies/${anomalyId}/evidence`,
-    )
   },
 
   // site 级异常总览

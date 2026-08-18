@@ -64,13 +64,6 @@ export const authApi = {
     return api.post<TokenResponse>('/auth/register', payload)
   },
 
-  refresh(refresh_token: string) {
-    return api.post<Pick<TokenResponse, 'access_token' | 'refresh_token'>>(
-      '/auth/refresh',
-      { refresh_token },
-    )
-  },
-
   me() {
     return api.get<MeResponse>('/auth/me')
   },

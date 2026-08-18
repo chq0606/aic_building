@@ -14,7 +14,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi, type User, type LoginRequest, type RegisterRequest } from '@/api/auth'
-import { getAccessToken, setTokens, clearTokens, getRefreshToken } from '@/api/client'
+import { getAccessToken, setTokens, clearTokens } from '@/api/client'
 import { useContextStore } from '@/stores/context'
 import { useParkStore } from '@/stores/park'
 
@@ -41,7 +41,6 @@ function persistUser(user: User | null) {
 export const useAuthStore = defineStore('auth', () => {
   // ---- state ----
   const user = ref<User | null>(loadUserFromStorage())
-  const loading = ref(false)
 
   // ---- getters ----
   // 注意: 不能写 !!getAccessToken() && !!user.value, && 会短路。
@@ -55,40 +54,28 @@ export const useAuthStore = defineStore('auth', () => {
     return hasToken && hasUser
   })
   const isDemo = computed(() => user.value?.is_demo ?? false)
-  const username = computed(() => user.value?.username ?? '')
   const displayName = computed(() => user.value?.display_name ?? user.value?.username ?? '')
-  const tenantId = computed(() => user.value?.tenant_id ?? '')
 
   // ---- actions ----
   async function login(payload: LoginRequest) {
-    loading.value = true
-    try {
-      const result = await authApi.login(payload)
-      setTokens(result.access_token, result.refresh_token)
-      user.value = result.user
-      persistUser(result.user)
-      // 登录态切换: 清掉上一个账号遗留的园区上下文 + 场景缓存, 防止 site_id 泄漏
-      useContextStore().reset()
-      useParkStore().clear()
-      return result
-    } finally {
-      loading.value = false
-    }
+    const result = await authApi.login(payload)
+    setTokens(result.access_token, result.refresh_token)
+    user.value = result.user
+    persistUser(result.user)
+    // 登录态切换: 清掉上一个账号遗留的园区上下文 + 场景缓存, 防止 site_id 泄漏
+    useContextStore().reset()
+    useParkStore().clear()
+    return result
   }
 
   async function register(payload: RegisterRequest) {
-    loading.value = true
-    try {
-      const result = await authApi.register(payload)
-      setTokens(result.access_token, result.refresh_token)
-      user.value = result.user
-      persistUser(result.user)
-      useContextStore().reset()
-      useParkStore().clear()
-      return result
-    } finally {
-      loading.value = false
-    }
+    const result = await authApi.register(payload)
+    setTokens(result.access_token, result.refresh_token)
+    user.value = result.user
+    persistUser(result.user)
+    useContextStore().reset()
+    useParkStore().clear()
+    return result
   }
 
   async function fetchMe() {
@@ -118,25 +105,17 @@ export const useAuthStore = defineStore('auth', () => {
     useParkStore().clear()
   }
 
-  function hasRefreshToken() {
-    return !!getRefreshToken()
-  }
-
   return {
     // state
     user,
-    loading,
     // getters
     isAuthenticated,
     isDemo,
-    username,
     displayName,
-    tenantId,
     // actions
     login,
     register,
     fetchMe,
     logout,
-    hasRefreshToken,
   }
 })
