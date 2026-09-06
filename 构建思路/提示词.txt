@@ -1,0 +1,405 @@
+Step 01：项目骨架
+你是资深全栈架构师。请为一个“建筑能耗分析与节能优化平台”创建 monorepo 项目骨架，技术栈固定为：
+- backend: FastAPI + SQLAlchemy 2.0 + Alembic + psycopg
+- frontend: Vue 3 + TypeScript + Vite + Pinia + Vue Router
+- worker: Python worker + Redis
+- database: PostgreSQL 16
+- charts: ECharts
+- 3D: CesiumJS + Three.js + @sparkjsdev/spark
+
+请输出：
+1. 完整目录树
+2. backend 的 pyproject.toml
+3. frontend 的 package.json
+4. docker-compose.dev.yml
+5. .env.example
+6. Makefile，至少包含 make up / make down / make migrate / make seed-demo / make test
+7. README.md，写清一键启动方式
+
+要求：不要伪代码；目录名和文件名要具体；开发环境优先考虑 Windows + Docker。
+Step 02：后端基础设施
+请在 backend 中实现 FastAPI 基础设施：
+- app/main.py
+- app/core/config.py
+- app/core/logging.py
+- app/db/session.py
+- app/api/health.py
+
+要求：
+1. 使用 Pydantic Settings 读取环境变量
+2. 提供 /api/v1/health 和 /api/v1/ready
+3. PostgreSQL 和 Redis 连接可配置
+4. 日志使用 JSON + request_id
+5. 输出可直接运行的完整代码
+Step 03：数据库 migration
+请基于以下业务对象生成 Alembic migration 与 SQLAlchemy models：
+tenant, site, building, space, point, building_visual_model, reconstruction_job,
+upload_file, mapping_profile, import_batch, staging_reading, staging_weather,
+point_reading(partitioned), weather_reading(partitioned), anomaly_event
+
+要求：
+1. 完整创建表、主键、外键、check constraint、索引
+2. point_reading 和 weather_reading 按月 range partition
+3. migration 可反向 downgrade
+4. 模型字段类型与数据库一致
+5. 输出 migration 文件和 models 文件，不要省略
+Step 04：仓储层与服务层骨架
+请实现 backend/app/repositories 和 backend/app/services 的基础骨架，至少包含：
+- tenant_repository.py
+- building_repository.py
+- point_repository.py
+- reading_repository.py
+- weather_repository.py
+- anomaly_repository.py
+
+要求：
+1. 使用 SQLAlchemy 2.0 typed ORM 风格
+2. 所有查询都支持 tenant_id 过滤
+3. 不要把业务逻辑写进 API 层
+4. 输出完整代码和目录结构
+Step 05：BDG2 下载与园区子集筛选
+请编写 scripts/prepare_bdg2_demo.py，用于处理 Building Data Genome 2 数据集。
+
+目标：
+从 BDG2 中自动选出同一个 site 内的 8-12 栋建筑，组成“园区 demo cohort”。
+
+过滤规则：
+1. 只取 2017 全年
+2. gross_area 不为空
+3. electricity 必须存在
+4. weather 可关联
+5. 数据完整度 >= 95%
+6. 尽量优先保留同时有 thermal/water meter 的楼
+
+输出文件：
+- data/demo/bdg2/sites.csv
+- data/demo/bdg2/buildings.csv
+- data/demo/bdg2/spaces.csv
+- data/demo/bdg2/points.csv
+- data/demo/bdg2/readings_long.parquet
+- data/demo/bdg2/weather.parquet
+- data/demo/bdg2/selection_report.md
+
+要求：
+- 不要手工写死 building ids
+- 选择逻辑必须可重复、可配置
+- 输出统计报告：候选楼数量、被剔除原因、最终入选楼
+Step 06：CU-BEMS 解析与 15 分钟分析层生成
+请编写 scripts/prepare_cubems_demo.py，用于处理 CU-BEMS 数据集。
+
+目标：
+1. 读取 14 个 floor-year CSV
+2. 自动生成一个 site、一个 building、floor/zone 两级 spaces
+3. 从宽表 melt 成 long 表
+4. 保留原始 1 分钟功率数据的归档文件
+5. 生成主分析层 15 分钟数据
+6. 对 power_kw 计算每个 bucket 的 interval_energy_kwh
+7. 生成数据质量报告，显式标记缺测与维护时段
+
+输出文件：
+- data/demo/cubems/sites.csv
+- data/demo/cubems/buildings.csv
+- data/demo/cubems/spaces.csv
+- data/demo/cubems/points.csv
+- data/demo/cubems/readings_15m.parquet
+- data/demo/cubems/readings_raw_manifest.json
+- data/demo/cubems/quality_report.md
+
+要求：
+- zone 命名规则统一，例如 F02_Z04
+- AC / lighting / plug / temp / humidity / lux 必须分清
+- 输出完整代码，不要伪代码
+Step 07：demo 数据 seed 脚本
+请实现 backend/app/seed_demo.py。
+
+目标：
+把 BDG2 demo cohort 和 CU-BEMS demo building 导入 PostgreSQL。
+
+要求：
+1. 先写入 core 层表，再写 ingest/import_batch，最后写 fact 层
+2. 大文件使用 COPY 到 staging，再 merge 到 final tables
+3. 导入完成后自动跑 ANALYZE
+4. 生成 seed 报告：楼栋数、space 数、point 数、reading 数、weather 数
+5. 提供命令：python -m app.seed_demo
+Step 08：客户上传模板与字段映射服务
+请实现一个“客户上传模板 + 字段映射服务”。
+
+后端需要：
+- 上传 buildings/spaces/points/readings/weather 5 类文件
+- 支持客户上传宽表 Excel
+- 后端先把宽表转换成 long format，再进入 staging
+
+请输出：
+1. pydantic schema
+2. 上传 API
+3. mapping_profile 存取逻辑
+4. 列名映射、时间格式映射、单位映射、时区映射代码
+5. 校验结果 JSON：错误行、警告、自动修正项
+
+要求：
+- 内部 canonical format 固定为 long
+- 任何错误不能直接写入 fact 表
+Step 09：批处理导入与每日增量更新
+请实现“批处理导入 + 增量 upsert”服务。
+
+目标：
+1. 新文件进入 upload_file
+2. 创建 import_batch
+3. COPY 到 staging
+4. 校验通过后 merge 到 fact.point_reading / fact.weather_reading
+5. 通过 ON CONFLICT 实现每日增量更新
+6. 记录本次 batch 的 total/success/error
+
+请输出：
+- import_service.py
+- staging_loader.py
+- upsert_service.py
+- import API
+- batch status API
+
+要求：
+- 同一个 point_code + ts 的重复数据必须 upsert
+- 日志里要带 batch_id
+- 输出完整可运行代码
+Step 10：数据质量与缺测报告
+请实现 data_quality_service.py。
+
+要求输出以下指标：
+- completeness
+- duplicate_rate
+- invalid_value_rate
+- missing_gap_count
+- timezone_parse_error_count
+- unit_normalization_count
+
+并提供 API：
+- /api/v1/data-quality/buildings/{building_id}
+- /api/v1/data-quality/batches/{batch_id}
+
+要求：
+- 同时支持 BDG2 demo、CU-BEMS demo、客户上传数据
+- 返回结构统一
+Step 11：查询与聚合 API
+请实现建筑能耗分析的核心查询服务与 API。
+
+功能：
+1. 园区总览 KPI
+2. 建筑列表与排名
+3. building-level 时序查询
+4. floor/zone-level 时序查询
+5. 多建筑对比
+6. 15 分钟 / 小时 / 日 / 月粒度切换
+7. interval_energy_kwh 统一返回
+
+API 至少包括：
+- /api/v1/park/overview
+- /api/v1/buildings/{building_id}/timeseries
+- /api/v1/buildings/{building_id}/spaces/{space_id}/timeseries
+- /api/v1/buildings/compare
+
+要求：
+- 查询参数包含 site/building/space/time_range/metric/granularity
+- 返回前端可直接渲染的数据结构
+Step 12：异常检测服务
+请实现 anomaly_service.py，先做 5 类：
+- SPIKE
+- DRIFT
+- PROLONGED_ZERO
+- MISSING_GAP
+- SCHEDULE_VIOLATION
+
+要求：
+1. building-level 与 zone-level 都能跑
+2. 结果写入 mart.anomaly_event
+3. 返回 observed_value、baseline_value、evidence
+4. 提供 API：
+   - /api/v1/anomalies/buildings/{building_id}
+   - /api/v1/anomalies/spaces/{space_id}
+
+要求：
+- 先写可解释规则版
+- 不要把 LLM 放进异常检测主链路
+Step 13：体块模式后端
+请实现“零门槛体块模式”的后端支持。
+
+需求：
+1. 客户可提交 building dimensions：length/width/height/floors_count
+2. 自动生成 building_visual_model 记录
+3. 给前端返回每栋楼的摆放坐标、盒体尺寸、颜色指标、异常状态、构成 badge 数据
+
+API：
+- POST /api/v1/buildings/{building_id}/visual-models/block
+- GET /api/v1/sites/{site_id}/scene
+
+要求：
+- scene API 一次返回园区所有建筑需要的 3D 元数据
+- 支持默认 demo site 和客户自建 site
+Step 14：单张照片 TripoSplat worker
+请实现一个 TripoSplat worker。
+
+目标：
+1. 接收单张建筑正脸照片
+2. 创建 reconstruction_job
+3. 调用 TripoSplat 生成 .ply/.splat
+4. 根据用户输入的长宽高/楼层数做尺度校准
+5. 生成 preview 图
+6. 写入 building_visual_model
+
+请输出：
+- worker_triposplat.py
+- job queue consumer
+- job status API
+- 失败重试逻辑
+- 产物存储路径规范
+
+要求：
+- 不训练模型，只用开源权重推理
+- 输出完整代码
+Step 15：多角度高精度重建 worker
+请实现一个“多图高精重建 worker”。
+
+流程固定：
+1. 校验上传照片数量在 20-100
+2. EXIF 方向修正与质量筛查
+3. 使用 PyCOLMAP 做特征提取、匹配、位姿重建
+4. 调用官方 gaussian-splatting 训练
+5. 导出 .ply/.splat
+6. 写回 building_visual_model 与 reconstruction_job
+
+请输出：
+- worker_multiview.py
+- pycolmap 封装
+- gaussian-splatting CLI 封装
+- 失败恢复逻辑
+- 中间产物目录结构
+
+要求：
+- 先跑通 CLI 方案，不要先写自研训练器
+- 输出完整代码和命令说明
+Step 16：前端应用壳
+请实现前端应用壳（Vue 3 + TS）。
+
+页面结构固定为：
+1. 登录页
+2. 园区总览 / 3D探索
+3. 分析中心
+4. 数据接入与3D建模中心
+5. 系统设置
+
+全局布局固定为：
+- 顶栏：站点、时间、指标切换、搜索
+- 左侧导航
+- 主内容区
+- 右侧全局 AI 抽屉
+- 底部时间轴（只在业务页显示）
+
+要求：
+- 使用 Pinia 管理当前上下文：site/building/space/time_range/metric
+- 输出 router、store、layout、基础页面骨架
+Step 17：园区 3D 探索页
+请实现“园区总览 / 3D探索”页。
+
+要求：
+1. 用 CesiumJS 渲染园区场景
+2. 默认显示体块模式
+3. building 主体颜色映射当前主指标
+4. roof halo 映射异常严重度
+5. building 上方显示小型堆叠 badge 表示能源构成
+6. hover 显示 tooltip
+7. click 后右侧抽屉打开建筑详情
+
+右侧抽屉 tab：
+- 概览
+- 能耗
+- 异常
+- 空间
+- 助手
+
+要求：
+- 不要把所有图塞进 3D 主区
+- 输出完整页面代码与组件拆分
+Step 18：楼宇 / 楼层 / 区域细节页
+请实现建筑细节浏览器。
+
+需求：
+1. 点击建筑后可切换到 building mode
+2. building mode 支持 exploded floors
+3. floor mode 显示 zone 热力
+4. zone 指标切换：total / ac / lighting / plug / temp / humidity / lux
+5. 右侧显示时序图、构成图、异常列表
+6. CU-BEMS showcase building 必须支持 floor/zone drilldown
+
+技术要求：
+- 户外园区继续用 Cesium
+- 楼内细节用 Three.js
+- 支持从一个 building 切回园区场景
+Step 19：上传与建模中心
+请实现“数据接入与3D建模中心”页面。
+
+模块包括：
+1. 模板下载区
+2. 文件上传区
+3. 字段映射向导
+4. 批处理任务列表
+5. 体块参数表单
+6. 单图建模上传
+7. 多图建模上传
+8. 模型预览区
+9. 手工上传 glb/gltf 的备用入口
+
+要求：
+- 同一个页面内完成“数据上传”和“3D模型生成”
+- 任务状态实时刷新
+- 错误信息要可见
+Step 20：全局 AI 助手抽屉
+请实现全局 AI 助手抽屉，但第一版只做“数据问答”，不做文档 RAG。
+
+要求：
+1. 抽屉在园区页和分析页都能拉开
+2. 自动继承当前上下文：site/building/space/time_range/current_metric
+3. 支持问题类型：
+   - 该楼最近7天用电怎么样
+   - 哪个区域最耗能
+   - 有没有异常
+   - 这个异常是什么时候开始的
+4. 回答必须调用后端查询 API，不允许模型编数字
+5. 在回答区显示：执行工具、查询摘要、引用的数据卡片
+
+请输出前后端完整联调代码
+Step 21：测试与性能
+请为 backend 和 frontend 增加测试与性能基线。
+
+要求：
+1. 后端：pytest + 集成测试
+2. 前端：Vitest + Playwright
+3. 至少覆盖：
+   - BDG2 seed 成功
+   - CU-BEMS seed 成功
+   - 上传宽表转换 long 成功
+   - point_reading 增量 upsert 成功
+   - 园区 3D 页面首次加载成功
+   - building drilldown 成功
+4. 给出性能预算：
+   - 园区总览 < 2s
+   - 单楼 30 天时序 < 1s
+   - 单图建模任务状态可轮询
+Step 22：部署与演示
+请生成 infra 目录下的部署脚本与演示脚本。
+
+要求：
+1. docker-compose.prod.yml
+2. Nginx 反向代理配置
+3. 一键 seed demo 数据
+4. 一键创建默认 demo tenant/site/buildings
+5. 演示脚本：
+   - 进入园区页
+   - 点击建筑
+   - 打开楼层/区域视图
+   - 触发异常查看
+   - 拉开 AI 抽屉提问
+   - 进入上传中心演示体块模式和单图模式
+7）给设计 AI 的 2 条视觉 prompt
+登录页
+设计一个建筑能源运维平台登录页。不要赛博蓝大屏风，不要满屏发光线条。整体气质偏建筑运营、设施管理、专业后台。背景使用低饱和建筑体块或园区轮廓，材质偏玻璃、金属、石材。配色以深灰、岩蓝、暖白为主，只保留少量琥珀色状态强调。界面要传达“可靠、可审计、节能、运维、空间感”。
+园区 3D 探索页
+设计一个建筑能源运维平台的园区 3D 探索页。中心是可旋转园区建筑群，3D 只负责导航和空间理解，不要遮挡业务信息。顶部有指标切换和时间

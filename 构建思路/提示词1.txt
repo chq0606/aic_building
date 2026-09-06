@@ -1,0 +1,1422 @@
+================================================================
+建筑能耗分析与节能优化平台 - 分步实施提示词（v1）
+================================================================
+
+【全局背景】
+本项目参加 2026 全球校园人工智能算法精英大赛 AI 场景建造赛道。
+定位：面向多租户建筑群的 AI 能效诊断与节能优化平台。
+不绑定特定数据集，不写死分析逻辑，搭一个能换数据、能接客户、
+能追溯证据的产品底座。
+
+【部署模型】
+开源自部署项目，每个使用者 clone 代码后跑在自己本地，每个本地
+实例是独立的数据库，互不干扰。不存在"多用户共用一个服务器"
+的 SaaS 场景。基于这个前提：
+- 不需要担心某个用户的操作影响其他人（实例隔离）
+- "一人一租户"指的是同一本地实例内，不同注册用户数据隔离
+- demo 体验账号是出厂自带的只读账号，clone 后默认可用
+- reset / seed 这类运维操作对所有登录用户开放，不存在滥用问题
+
+【已落地工作】
+- 数据库层：PostgreSQL 15 + pgvector 0.8.3
+- 建表 SQL：postgresql_bdg2.sql（5 schema / 17 表 / 3 视图 / 20 索引）
+- demo seed 脚本：code/seed_bdg2.py（已跑通）
+- demo 数据：1 tenant(demo) / 1 site(Bobcat) / 6 buildings / 28 points
+            169,146 point_readings / 8,744 weather_readings / ~12,000 日聚合
+- 知识库表为空，等文档导入
+
+【Python 运行环境（building_aic conda env）】
+所有后端脚本、verify_*.py 验收、uvicorn 启动都用本机 conda 虚拟环境
+building_aic（不要污染 base 环境）。
+
+  解释器路径: python
+  激活命令:   conda activate building_aic
+  装包命令:   python -m pip install <pkg>
+
+按 Step 分组的依赖清单（截至 Step 18，所有依赖已就位）:
+
+  Step 01 后端骨架
+    fastapi==0.115.6          uvicorn==0.34.0
+    pydantic==2.10.4          pydantic-settings==2.7.1
+    psycopg2-binary==2.9.10   loguru==0.7.3
+
+  Step 02 注册 + 登录
+    bcrypt==4.2.1             passlib==1.7.4
+    python-jose==3.3.0        python-multipart==0.0.20
+    email-validator==2.2.0    cryptography==49.0.0
+
+  Step 04 客户数据上传
+    pandas==2.2.3             openpyxl==3.1.5
+
+  Step 06 数据质量 / Step 09 知识库导入
+    pymupdf==1.28.0 (fitz)    easyocr==1.7.2
+    sentence-transformers==5.6.0   jieba==0.42.1
+    numpy==2.4.6              pdfminer.six==20260107    pdfplumber==0.11.10
+
+  Step 08 异常检测
+    scikit-learn==1.9.0       scipy==1.17.1
+
+  Step 12 单图 TripoSplat 重建
+    torch==2.13.0+cu130       torchvision==0.28.0
+    trimesh==4.12.2           gsplat==1.5.3
+    plyfile==1.1.4            einops==0.8.2
+    jaxtyping==0.3.11         safetensors==0.8.0
+    scikit-image==0.26.0      shapely==2.1.2
+    opencv-python-headless==5.0.0.93
+    modelscope==1.38.1        pillow==12.3.0
+    （TripoSplat 仓库本体 vendored 到 backend/third_party/triposplat/，
+     worker.py 把该目录塞进 sys.path 用，不是 pip 包）
+
+  Step 18 全局 AI 抽屉（PDF 导出 + matplotlib 图表）
+    weasyprint==69.0          matplotlib==3.11.1
+    jinja2==3.1.6             markdown-it-py==4.2.0
+    requests==2.34.2
+    Windows 跑 weasyprint 前要在 pdf_export_service.py 顶部把
+    <conda_env>/Library/bin 注入 PATH（libpango/libgio 依赖 DLL）。
+
+  Step 19 能耗预测（待装）
+    prophet / neuralprophet / statsmodels / pytorch-lightning
+    Step 19 开始前用 pip 装到本 env。
+
+跑法约定:
+  - verify_*.py:  cd backend && python verify_stepNN.py
+  - 后端启动:    cd backend && python -m uvicorn app.main:app --reload
+  - seed 脚本:    cd backend && python ../seed_bdg2.py
+  - 临时调脚本:   在脚本顶加 sys.stdout.reconfigure(encoding='utf-8') 防止 Windows GBK 控制台炸
+
+【技术栈定版】
+- 数据库：PostgreSQL 15（不上 16，不用 Alembic，直接用 SQL 文件）
+- 后端：FastAPI + psycopg2/psycopg（不上 SQLAlchemy）+ loguru 简单日志
+- 前端：Vue 3 + TypeScript + Vite + Pinia + Vue Router + Ant Design Vue
+- 图表：ECharts
+- 3D：CesiumJS（体块模式 + 加载 .ply/.splat）+ TripoSplat（单图重建）
+- 检索：pgvector + tsvector + jsonb 三路混检（不上 rerank）
+- Embedding：BGE-large-zh-v1.5 或 bge-m3（本地推理，1024 维）
+- LLM：智谱 GLM-4.5 或 GLM-4-Plus（工具调用支持）
+- 部署：docker-compose（dev+prod 合一）+ Makefile + README
+- 认证：注册 + 登录 + JWT，一人一租户（不做 RBAC 多角色）
+
+【明确不做】
+- 不上 TimescaleDB
+- 不上 Alembic
+- 不上 SQLAlchemy / SQLModel
+- 不上 RAGFlow 或任何外挂检索
+- 不做 CU-BEMS 数据集（已从原计划删除）
+- 不做多图高精重建（PyCOLMAP + gaussian-splatting 不做）
+- 不做 MCP 协议
+- 不做 rerank
+- 不做楼层/区域 drilldown（BDG2 没数据）
+- 不做前端底部时间轴
+- 不做 Nginx 反向代理配置（前端容器自带 nginx 静态托管）
+- 不做 RBAC 多角色权限（一人一租户，不需要权限分级）
+- 不做 super admin 跨租户管理（用户只管自己的租户）
+- 不做租户管理界面（用户只看自己的租户信息）
+- 不做邀请码/加入已有租户（一人一租户，不支持同租户多人协作）
+
+【视觉风格定版】
+主色（混凝土/石材）：
+  暖灰 #4A4A4A    （主文本，模拟混凝土）
+  岩蓝灰 #5A6B7C  （次级文本/图标，模拟石材）
+  暖白 #F5F2EB    （页面背景，模拟纸张/图纸底色）
+强调色（金属与状态）：
+  琥珀 #D49B3B    （主要强调，关键按钮/数据高亮，象征铜/黄铜金属感）
+  翠绿 #3D7E6A    （次要强调，节能/正常状态，呼应可持续性）
+分割线：
+  #D1CEC5         （细实清晰线条，模拟建筑图纸线稿）
+卡片背景：
+  #FFFFFF         （纯白，配克制阴影，模拟建筑构件悬浮感）
+布局规范：
+  严格 8px 网格系统，所有间距/尺寸是 8 的倍数
+  适度留白，模拟建筑空间的空旷与尺度感
+字体：
+  标题用粗重字重（600/700），模拟工程图纸字体风格
+  字体族优先思源黑体或微软雅黑
+图标：
+  Ant Design Outlined 风格，线性几何结构感
+  避免圆润可爱风格
+  可自定义建筑元素图标（楼层/空调/电梯/结构柱）
+气质：可靠、可审计、节能、运维、空间感、建筑领域厚重气息
+
+【数据库现状速查】
+- core:     tenant / site / building / point
+- ingest:   import_batch / staging_reading / staging_weather / upload_file / mapping_profile
+- fact:     point_reading(月分区至2030) / weather_reading(月分区至2030)
+- mart:     building_daily_energy / v_building_monthly_energy / anomaly_event
+- knowledge: document / chunk / assistant_session / assistant_message
+- visual:   building_visual_model / reconstruction_job
+
+================================================================
+Step 01：后端基础设施
+================================================================
+
+【背景】
+数据库已落地，demo 数据已灌入。现在搭后端骨架，让后续所有 API
+都能在这个基础设施上写。不上 SQLAlchemy，直接用 psycopg2 写 SQL，
+和 seed 脚本一个路子。日志用 loguru，不上结构化 JSON。
+
+【目标】
+搭起 FastAPI 应用骨架，能跑通 /api/v1/health 和 /api/v1/ready，
+配置从环境变量读，日志输出到控制台和文件。
+
+【输入】
+- postgresql_bdg2.sql（已落地，作为 baseline）
+- code/seed_bdg2.py（参考连接配置）
+
+【输出】
+- backend/app/__init__.py
+- backend/app/main.py（FastAPI 应用入口，挂载路由）
+- backend/app/core/config.py（Pydantic Settings，读环境变量）
+- backend/app/core/logging.py（loguru 配置，控制台 + 文件轮转）
+- backend/app/db/session.py（psycopg2 连接池，按 tenant_id 隔离查询）
+- backend/app/api/__init__.py
+- backend/app/api/health.py（GET /health 和 /ready）
+- backend/pyproject.toml 或 requirements.txt
+- backend/.env.example（DATABASE_URL / REDIS_URL / JWT_SECRET / GLM_API_KEY 等）
+- backend/README.md（启动方式：uvicorn app.main:app --reload）
+
+【技术要求】
+1. config 用 pydantic-settings，所有配置项有默认值
+2. db/session.py 用 psycopg2.pool.ThreadedConnectionPool，最小 2 最大 10
+3. 每个 API 请求从池里获取连接，用完归还；查询前先 SET search_path
+4. health 端点返回 {status, version, db: ok/fail}；ready 检查 DB 连通
+5. 日志格式：时间 | 级别 | 模块 | 消息；文件按天轮转，保留 7 天
+6. CORS 允许 localhost:5173（前端 dev）
+7. 不做认证（认证在 Step 02）
+
+【依赖】
+- 已完成：数据库层、demo seed
+
+【验收标准】
+- uvicorn app.main:app --reload 能启动
+- GET /api/v1/health 返回 200 + JSON
+- GET /api/v1/ready 检查 DB 连通，DB 挂掉时返回 503
+- 日志同时输出到控制台和 backend/logs/app.log
+
+================================================================
+Step 02：注册 + 登录（一人一租户）
+================================================================
+
+【背景】
+参考 RAGFlow 的注册模式：访客打开网站 → 注册账号 → 登录。
+但本项目是开源自部署，每个使用者跑一个实例。
+做法：一人一租户——每个用户注册时自动创建一个独立租户，
+用户绑定为该租户的 admin，不同用户数据天然隔离。
+
+不做 RBAC（一人一租户不需要角色分级）。
+不做 super admin（没有跨租户管理场景）。
+不做租户管理界面（用户只看自己的租户信息）。
+不做邀请码/加入已有租户（不支持同租户多人协作）。
+
+demo 租户已有 BDG2 数据（6 栋楼 / 16.9 万行读数），作为"体验账号"
+独立提供，登录页有"体验 demo"按钮，用 demo / demo123 登录后只读访问。
+
+【目标】
+实现注册 + 登录 + JWT + 多租户隔离。每个注册用户 = 一个新租户。
+
+【输入】
+- Step 01 的后端骨架
+- core.tenant 表（已存在，里面已有 demo 一行）
+- core."user" 表（已通过 auth_bdg2.sql 建好，空表）
+
+【输出】
+- backend/app/models/auth.py
+  - RegisterRequest / LoginRequest / TokenResponse / UserOut / ChangePasswordRequest
+- backend/app/core/security.py
+  - 密码哈希：bcrypt
+  - JWT 生成与校验：python-jose
+- backend/app/core/deps.py
+  - get_current_user（依赖注入，从 JWT 解析用户）
+  - get_current_tenant_id（返回当前用户的 tenant_id）
+- backend/app/api/auth.py
+  - POST /api/v1/auth/register（注册：用户名+密码+邮箱(可选) → 创建租户+用户 → JWT）
+  - POST /api/v1/auth/login（用户名+密码 → JWT）
+  - POST /api/v1/auth/refresh
+  - GET /api/v1/auth/me（当前用户信息 + 租户信息）
+  - POST /api/v1/auth/change-password（修改自己密码）
+- backend/app/seed/demo_user.py
+  - 后端启动时调用：检测 demo 租户是否已有 demo 用户，没有则创建
+    demo / demo123，标记为只读（is_active=true 但无法改数据，通过业务 API 逻辑判断）
+
+【技术要求】
+1. 注册流程：
+   - 请求：{username, password, email(可选)}
+   - 后端校验：username 不重复（跨所有租户全局唯一）
+   - 后端创建：core.tenant 一行（tenant_code = "user_" + username，
+     tenant_name = username），core."user" 一行（绑定到新 tenant）
+   - 返回 JWT
+2. 登录流程：
+   - 请求：{username, password}
+   - 后端查 core."user" 表，bcrypt 比对密码
+   - 正确 → 返回 JWT（payload 含 user_id, tenant_id, username）
+   - 错误 → 返回 401
+3. JWT 过期时间 24h，refresh 7d
+4. 所有业务 API 用 get_current_user 依赖注入校验登录态
+5. 所有业务查询强制带 tenant_id = current_user.tenant_id
+6. demo 用户（username = 'demo'）的特殊处理：
+   - 业务 API 检测到当前用户是 demo 用户时，写操作（上传/改/删）返回 403
+   - 读操作正常放行
+7. username 全局唯一（不是 tenant 内唯一），用 username 直接登录
+8. 密码强度校验：最少 8 位，包含字母和数字
+9. change-password 接口要求带旧密码
+10. 不做用户列表 API（用户只看自己）
+11. 不做角色、权限、user_role、role_permission 四张表
+
+【依赖】
+- Step 01 后端骨架
+- auth_bdg2.sql 已执行（core."user" 表已建）
+
+【验收标准】
+- 注册新用户 → 能登录 → 看到空租户（无楼无数据）
+- 用 demo / demo123 登录 → 看到 6 栋楼 + 16.9 万行读数
+- demo 用户尝试上传数据 → 返回 403
+- 普通用户尝试查其他租户数据 → 查不到（强制 tenant_id 过滤）
+- 重复 username 注册 → 返回 409
+- 能修改自己密码
+
+================================================================
+Step 03：BDG2 demo seed 集成
+================================================================
+
+【背景】
+code/seed_bdg2.py 已写好并跑通，但需要纳入后端项目结构，作为
+默认 demo 数据初始化方式。客户上传是主线，BDG2 seed 是开箱即用的
+默认展示数据。
+
+【目标】
+把现有 seed 脚本改造为后端模块，提供命令行和 API 两种触发方式。
+清空数据库后能一键重建 demo 数据。
+
+【输入】
+- code/seed_bdg2.py（已存在）
+- extracted_data/（metadata.csv / readings_2017.csv / weather_2017.csv）
+
+【输出】
+- backend/app/seed/__init__.py
+- backend/app/seed/bdg2.py（从 code/seed_bdg2.py 迁移改造）
+- backend/app/seed/cli.py（命令行入口）
+- backend/app/api/seed.py（POST /api/v1/admin/seed-demo，admin only）
+- backend/app/seed/ivfflat_rebuild.py（数据导入后重建 IVFFlat 索引）
+
+【技术要求】
+1. 命令行：python -m app.seed.cli bdg2 --reset（--reset 先清空再灌）
+2. API：POST /api/v1/admin/seed-demo，异步任务，返回 batch_id
+3. seed 完成后自动跑 ANALYZE
+4. seed 完成后自动重建 knowledge.chunk 的 IVFFlat 索引（如果知识库非空）
+5. seed 前检查 demo tenant 是否存在，不存在则创建
+6. seed 完成后顺便创建 demo 用户（demo / demo123，绑定到 demo 租户）
+   demo 用户用于"体验 demo"按钮登录，只读访问
+7. 日志输出每一步进度（写入 / 灌入 / merge / 聚合 / 索引重建 / demo 用户创建）
+
+【依赖】
+- Step 01 后端骨架
+- Step 02 简单认证（API 触发需登录）
+
+【验收标准】
+- python -m app.seed.cli bdg2 --reset 能完整跑通
+- 清空数据库后调用，能重建 demo 数据
+- 跑完后 fact.point_reading 行数 = 169,145
+  （CSV 实际行数 169145，提示词早期估算写 169146 是笔误）
+- mart.building_daily_energy 行数 = 5,615
+  （原估算"约 12,000"未排除 water 类型；daily_energy 表只统计
+   能耗类 measure_kind ∈ {energy_kwh, energy_kwh_thermal}，
+   water 的 measure_kind 是 volume_liter 不纳入。实际：
+   chilledwater 1455 + electricity 1191 + gas 784 + hotwater 1455
+   + solar 730 = 5615）
+
+================================================================
+Step 04：客户数据上传与字段映射
+================================================================
+
+【背景】
+赛题要求"数据集构建与导入接口"。项目面向真实客户，客户数据格式
+千差万别。原 Step 8 全集太重，本步做成三层级方案，客户自选。
+
+【目标】
+实现三层级客户数据上传：极简（单 CSV 自动识别）/ 标准（CSV + 字段映射）
+/ 完整（多文件 + 映射向导）。内部统一 canonical long format。
+
+【输入】
+- ingest.upload_file / ingest.mapping_profile 表（已存在）
+- Step 02 简单认证（需登录）
+
+【输出】
+- backend/app/models/upload.py（Pydantic schema）
+- backend/app/models/mapping.py
+- backend/app/services/upload_service.py
+- backend/app/services/mapping_service.py
+- backend/app/services/wide_to_long.py（宽表转长表，支持 .xlsx 和 .csv）
+- backend/app/api/upload.py
+  - POST /api/v1/uploads/single（层级 A：单 CSV 自动识别）
+  - POST /api/v1/uploads/multi（层级 C：多文件上传）
+  - GET /api/v1/uploads/{id}/mapping-suggest（自动猜测列映射）
+  - POST /api/v1/uploads/{id}/mapping（层级 B/C：确认或调整映射）
+  - POST /api/v1/uploads/{id}/validate（校验）
+  - POST /api/v1/uploads/{id}/commit（确认导入，进 staging）
+  - GET /api/v1/uploads（列表，按 tenant 过滤）
+
+【技术要求】
+1. 层级 A：上传单 CSV，后端读 header，用 mapping_profile 的默认规则
+   自动匹配列名（building_id/energy_type/timestamp/value 等），
+   直接进 staging，返回导入结果。失败时返回详细错误。
+2. 层级 B：上传 CSV → 调 /mapping-suggest 返回列名猜测 →
+   用户调整 → /mapping 保存 → /validate 校验 → /commit 导入。
+3. 层级 C：上传 buildings.csv + readings.csv + weather.csv 三个文件，
+   每个文件独立走映射向导，最后统一 commit。
+4. 宽表转长表：支持 Excel 多 sheet、支持 melt 操作，输出统一 long format
+5. mapping_profile 表存"列名映射 / 时间格式 / 单位映射 / 时区映射"，
+   支持租户级别复用
+6. 校验规则：必填字段非空、timestamp 格式合法、value 数值合法、
+   building_id 在 core.building 存在（或自动创建）
+7. 任何校验错误不能写入 fact 表，只能停在 staging
+8. 内部 canonical format 固定 long，宽表必须先转 long
+
+【依赖】
+- Step 01 后端骨架
+- Step 02 RBAC
+- Step 03 seed（参考 staging 灌入逻辑）
+
+【验收标准】
+- 层级 A：拖一个符合格式的 CSV，自动导入成功
+- 层级 B：上传 CSV 后能看到列名猜测，调整后导入成功
+- 层级 C：三文件上传，分别映射后统一导入成功
+- 宽表 Excel 能正确转 long 后导入
+- 错误数据（缺 timestamp / value 非数字 / building_id 不存在）被拦截
+
+================================================================
+Step 05：批处理导入与增量 upsert
+================================================================
+
+【背景】
+Step 04 把数据送进 staging，本步把 staging 合并到 fact 表。
+支持增量更新：同一 point_code + ts 的重复数据 upsert 而非报错。
+
+【目标】
+实现 staging → fact 的 merge 服务，管理 import_batch 生命周期，
+支持增量 upsert，记录每次导入的统计。
+
+【输入】
+- ingest.staging_reading / staging_weather 表（已存在）
+- fact.point_reading / weather_reading 表（已存在，月分区）
+- Step 04 的 commit 结果
+
+【输出】
+- backend/app/services/import_service.py（编排：batch 创建 → COPY → merge）
+- backend/app/services/staging_loader.py（CSV → staging 的 COPY）
+- backend/app/services/upsert_service.py（staging → fact 的 ON CONFLICT upsert）
+- backend/app/services/aggregate_service.py（重算日聚合）
+- backend/app/api/import.py
+  - POST /api/v1/imports/{batch_id}/run（触发 merge）
+  - GET /api/v1/imports/{batch_id}/status（返回 total/success/error）
+  - GET /api/v1/imports（batch 列表）
+  - POST /api/v1/imports/{batch_id}/rollback（回滚，删本次 batch 写入的数据）
+
+【技术要求】
+1. import_batch 状态机：LOADING → VALIDATED → MERGING → SUCCEEDED / FAILED
+2. merge 用 INSERT ... ON CONFLICT (point_id, ts) DO UPDATE
+3. merge 完成后重算相关 building 的日聚合（只重算受影响的日期范围）
+4. merge 完成后跑 ANALYZE fact.point_reading
+5. 日志全程带 batch_id
+6. rollback：按 source_batch_id 删除 fact 数据 + 删除日聚合
+7. 同一 point_code + ts 的重复数据必须 upsert
+8. 并发安全：同一 batch_id 不能并发 run
+
+【依赖】
+- Step 04 上传与映射
+
+【验收标准】
+- 上传一个含重复 timestamp 的 CSV，merge 后 fact 表无重复行
+- 同一 building 重新上传新数据，日聚合自动重算
+- rollback 能完整删除本次 batch 的所有数据
+- batch 状态正确流转
+
+================================================================
+Step 06：数据质量报告
+================================================================
+
+【背景】
+数据接入后客户需要知道数据质量如何。赛题可能看数据治理能力。
+
+【目标】
+实现数据质量指标计算，按 building 和 batch 两个维度出报告。
+
+【输入】
+- fact.point_reading（已灌入数据）
+- Step 05 import_batch
+
+【输出】
+- backend/app/services/data_quality_service.py
+- backend/app/api/data_quality.py
+  - GET /api/v1/data-quality/buildings/{building_id}
+  - GET /api/v1/data-quality/batches/{batch_id}
+  - GET /api/v1/data-quality/sites/{site_id}/overview
+
+【技术要求】
+1. 指标：completeness（完整度，应有读数 vs 实际读数）
+         duplicate_rate（重复率）
+         invalid_value_rate（无效值率，NaN/负数/超限）
+         missing_gap_count（缺测时段数）
+         timezone_parse_error_count（时区解析错误）
+         unit_normalization_count（单位归一化次数）
+2. 按 building + time_range 聚合
+3. 按 batch 聚合，展示该批次导入的质量
+4. 返回结构统一：{metric, value, threshold, status, details}
+5. status: ok / warning / critical（按阈值判定）
+6. details 给出具体的问题时段和问题点列表
+
+【依赖】
+- Step 05 导入服务
+
+【验收标准】
+- demo 数据的 Bobcat site 各楼 completeness 接近 100%
+- 人为造一个缺测时段，missing_gap_count 能检出
+- 重复上传同一 CSV，duplicate_rate 反映出来
+
+================================================================
+Step 07：查询与聚合 API
+================================================================
+
+【背景】
+核心业务 API。前端所有页面、AI 助手都依赖这组 API。删掉 zone-level
+（BDG2 没数据），保留园区总览、建筑列表、建筑时序、多建筑对比、
+粒度切换。
+
+【目标】
+实现建筑能耗分析的核心查询服务，覆盖园区总览、建筑排名、时序查询、
+对比分析，支持多粒度切换。
+
+【输入】
+- fact.point_reading / weather_reading
+- mart.building_daily_energy / v_building_monthly_energy
+- core.building / point
+
+【输出】
+- backend/app/services/query_service.py
+- backend/app/services/aggregate_service.py（复用 Step 05）
+- backend/app/api/query.py
+  - GET /api/v1/park/overview?site_id=&time_range=
+  - GET /api/v1/buildings?site_id=&sort=&limit=
+  - GET /api/v1/buildings/{id}/timeseries?metric=&granularity=&time_range=
+  - GET /api/v1/buildings/compare?building_ids=&metric=&time_range=
+  - GET /api/v1/buildings/{id}/weather?time_range=
+  - GET /api/v1/buildings/{id}/energy-composition?time_range=
+
+【技术要求】
+1. 园区总览：建筑数、总能耗、EUI 均值、异常数、能耗同比/环比
+2. 建筑列表：返回 building_id/name/primary_use/sqm/总能耗/EUI/异常数，
+   支持按 total_kwh / eui_kwh_per_m2 / anomaly_count 排序
+3. 时序查询：支持 granularity = 15min / hour / day / month，
+   返回 [{ts, value, unit}]，统一返回 interval_energy_kwh
+4. 多建筑对比：支持最多 10 栋楼对比，返回每栋楼的时序 + 统计摘要
+5. 能源构成：返回该楼各 energy_type 的占比 [{type, kwh, pct}]
+6. 天气关联：返回同时段的天气数据，便于分析能耗与气温关系
+7. 所有查询支持 time_range 参数（start/end ISO8601）
+8. 所有查询强制 tenant_id 过滤
+9. 时序大数据用分页或聚合限制，单次最多返回 10000 点
+
+【依赖】
+- Step 05 导入服务（数据已就绪）
+
+【验收标准】
+- 园区总览返回 6 栋楼 + 总能耗 + EUI 均值
+- 单楼 30 天日粒度时序 < 1s 返回
+- 多建筑对比能返回 6 栋楼的对比数据
+- 能源构成正确反映电/热水/冷冻水/燃气/水/太阳能占比
+
+================================================================
+Step 08：异常检测服务
+================================================================
+
+【背景】
+异常检测是节能优化的核心信号。原计划 5 类异常扩到 6 类，加
+BASELINE_DEVIATION（横向对比异常，同类型建筑单位面积能耗偏高）。
+删掉 zone-level，只做 building-level。
+
+【目标】
+实现 6 类异常检测，结果写入 mart.anomaly_event，提供建筑级异常
+查询 API。先做可解释规则版，LLM 不进主链路。
+
+【输入】
+- fact.point_reading
+- mart.building_daily_energy
+- core.building（primary_use / sqm 用于横向对比）
+
+【输出】
+- backend/app/services/anomaly_service.py
+- backend/app/services/anomaly_detectors/（每类一个文件）
+  - spike.py（瞬时尖峰）
+  - drift.py（缓慢漂移）
+  - prolonged_zero.py（持续为零）
+  - missing_gap.py（缺测时段）
+  - schedule_violation.py（作息违反，周末/夜间异常高负荷）
+  - baseline_deviation.py（横向对比异常，EUI 高于同类均值）
+- backend/app/api/anomaly.py
+  - POST /api/v1/anomalies/detect?building_id=&time_range=（触发检测）
+  - GET /api/v1/anomalies/buildings/{building_id}
+  - GET /api/v1/anomalies/sites/{site_id}/overview
+  - GET /api/v1/anomalies/{id}/evidence（异常的证据链）
+
+【技术要求】
+1. 6 类异常：
+   - SPIKE：单点值超过近 7 天均值 + 3σ
+   - DRIFT：7 天滑动均值偏离历史均值超过 20%
+   - PROLONGED_ZERO：连续 ≥ 6 小时值为 0（且该 point 不该为零）
+   - MISSING_GAP：应有读数但缺失超过 3 小时
+   - SCHEDULE_VIOLATION：非工作时段（夜间 22:00-6:00 或周末）
+                         负荷超过工作时段中位数的 50%
+   - BASELINE_DEVIATION：EUI 高于同 primary_use 建筑均值 + 1σ
+2. 每个异常记录：observed_value / baseline_value / evidence（JSON）
+3. evidence 字段存可追溯证据：时段、对比基准、相关数据点
+4. 检测可手动触发（API），也可配置定时任务（用 APScheduler，非必须）
+5. LLM 不进异常检测主链路，但 evidence 字段为 AI 助手提供素材
+6. building-level 检测，每个 building 跑一次覆盖所有 point
+
+【依赖】
+- Step 07 查询 API（复用部分查询能力）
+
+【验收标准】
+- 对 Bobcat 6 栋楼触发检测，能输出异常列表
+- BASELINE_DEVIATION 能识别出 EUI 明显偏高的楼
+- 每个异常的 evidence 字段可追溯
+- API 响应包含 observed_value 和 baseline_value
+
+================================================================
+Step 09：知识库文档导入
+================================================================
+
+【背景】
+knowledge schema 4 张表已建好但为空。本步实现国标文档的导入、
+抽取、切片、embedding 入库。知识库内容只灌国标抽取版
+（不要自建运维知识、不要 BDG2 说明）。
+
+【目标】
+实现国标 PDF 的结构化解析、按条款切片、BGE embedding 入库。
+文档进入 knowledge.document 和 knowledge.chunk 表。
+
+【输入】
+- knowledge.document / chunk 表（已存在，含 pgvector + tsvector + jsonb）
+- 国标 PDF 文件（客户提供或后期补充，先实现流程）
+
+【输出】
+- backend/app/services/knowledge_service.py
+- backend/app/services/pdf_parser.py（PDF 结构化解析）
+- backend/app/services/chunker.py（按文档类型自适应切块）
+- backend/app/services/embedding_service.py（BGE 本地推理）
+- backend/app/api/knowledge.py
+  - POST /api/v1/knowledge/documents（上传 PDF）
+  - POST /api/v1/knowledge/documents/{id}/parse（触发解析）
+  - POST /api/v1/knowledge/documents/{id}/embed（触发 embedding）
+  - GET /api/v1/knowledge/documents（列表）
+  - DELETE /api/v1/knowledge/documents/{id}
+
+【技术要求】
+1. PDF 解析用 pdfplumber 或 PyMuPDF，保留：标题层级、条款编号、
+   页码、表格结构
+2. 切块策略按文档类型自适应：
+   - 国标：按条款切（一条一款一个 chunk），保留条款号、所属章节
+   - 表格：单独切，保留表头和上下文
+3. chunk 字段填充：content / doc_id / page_no / section_path / metadata(jsonb)
+4. metadata 存：标准号（GB 50189 等）、发布日期、条款类型（限值/方法/术语）
+5. embedding 用 BGE-large-zh-v1.5（1024 维）或 bge-m3（1024 维）
+   - 本地推理，用 sentence-transformers 或 FlagEmbedding 库
+   - 批量推理，一批 32 条
+6. tsvector 自动生成：content 转 tsvector，用中文分词（zhparser 或 jieba）
+7. 入库后重建 IVFFlat 索引（lists = sqrt(行数)）
+8. 异步任务：上传后立即返回 doc_id，解析和 embedding 后台跑
+9. status 字段：UPLOADED → PARSING → PARSED → EMBEDDING → READY / FAILED
+
+【依赖】
+- Step 02 简单认证（需登录）
+
+【验收标准】
+- 上传一个国标 PDF，能解析出条款层级
+- 切块后的 chunk 保留条款号和页码
+- embedding 入库后 pgvector 查询能返回相似 chunk
+- tsvector 关键词查询能命中
+- 知识库非空时 IVFFlat 索引能正常重建
+
+================================================================
+Step 10：三路混检检索 API
+================================================================
+
+【背景】
+2.txt 定了三路混检（pgvector + tsvector + jsonb metadata 过滤），
+不上 rerank。本步实现检索 API，供 AI 助手调用。
+
+【目标】
+实现三路混检：向量相似度 + BM25 关键词 + metadata 过滤，
+融合排序后返回 top-k chunk。
+
+【输入】
+- knowledge.chunk 表（已通过 Step 09 灌入数据）
+- BGE embedding 模型
+
+【输出】
+- backend/app/services/retrieval_service.py
+  - vector_search（pgvector 余弦相似度）
+  - keyword_search（tsvector + GIN 索引）
+  - metadata_filter（jsonb 条件过滤）
+  - hybrid_search（三路融合）
+- backend/app/api/retrieval.py
+  - POST /api/v1/knowledge/search
+    body: {query, top_k, filters: {standard_no, section_type, ...}}
+
+【技术要求】
+1. 向量检索：query → BGE embedding → pgvector 余弦相似度 top-k
+2. 关键词检索：query → tsvector 查询 → BM25 排序 top-k
+3. metadata 过滤：支持按 standard_no / section_type / page_range 过滤
+4. 三路融合：归一化后加权（向量 0.5 + 关键词 0.3 + metadata 加权 0.2），
+   权重可配置
+5. 返回结构：[{chunk_id, content, doc_id, page_no, section_path,
+              score_vector, score_keyword, score_final, metadata}]
+6. score_final 用于排序，其他 score 用于审计
+7. top_k 默认 10，最大 50
+8. 检索结果带租户隔离（如果知识库分租户）
+
+【依赖】
+- Step 09 知识库导入
+
+【验收标准】
+- 查询"公共建筑 EUI 限值"能命中 GB 50189 相关条款
+- 查询"夜间基础负荷"能命中运行调适规范相关条款
+- metadata 过滤能精确到某本标准
+- 三路融合的 score_final 合理
+
+================================================================
+Step 11：体块模式后端
+================================================================
+
+【背景】
+3D 层的默认模式。客户没照片的楼走体块模式，用 building dimensions
+自动生成 BoxGeometry。赛题原文：3D 是增强项，不能成为使用门槛。
+
+【目标】
+实现体块模式后端支持：客户提交建筑尺寸 → 生成 visual_model 记录 →
+scene API 一次返回园区所有建筑的 3D 元数据。
+
+【输入】
+- visual.building_visual_model 表（已存在）
+- core.building（sqm / floors_count）
+
+【输出】
+- backend/app/services/visual_model_service.py
+- backend/app/api/visual.py
+  - POST /api/v1/buildings/{id}/visual-models/block
+    body: {length, width, height, floors_count, position_x, position_y}
+  - GET /api/v1/sites/{site_id}/scene
+  - GET /api/v1/buildings/{id}/visual-model
+  - DELETE /api/v1/buildings/{id}/visual-models/{model_id}
+
+【技术要求】
+1. 体块模式自动生成：如果 building 有 sqm 和 floors_count，自动估算
+   length/width/height（sqm / floors_count 推算楼层面积，假设长宽比）
+2. 客户可手动覆盖尺寸
+3. position_x / position_y 是园区内的相对坐标（米），用 8px 网格对齐
+4. scene API 一次返回所有 building 的：id / name / position / dimensions /
+   model_kind（block/splat）/ model_url（splat 模式才有）/ color_metric /
+   anomaly_status / energy_composition_badge
+5. color_metric：根据当前主指标（EUI / 总能耗 / 异常数）映射颜色
+6. anomaly_status：建筑是否有异常，异常严重度
+7. energy_composition_badge：各能源类型占比的小型堆叠数据
+8. model_kind 优先级：splat > block。有 splat 走 splat，否则 block
+
+【依赖】
+- Step 07 查询 API（color_metric 和 anomaly_status 数据来源）
+- Step 08 异常检测（anomaly_status 数据来源）
+
+【验收标准】
+- 给 6 栋楼提交体块参数，scene API 返回完整园区数据
+- 没提交参数的楼能用 sqm + floors_count 自动估算
+- color_metric 根据 EUI 正确着色
+- anomaly_status 反映异常检测结果
+
+================================================================
+Step 12：单图 TripoSplat worker
+================================================================
+
+【背景】
+3D 层的增强模式。客户给一张正脸照片 → 生成 .ply/.splat。
+8GB 显存够用，推理时间 1-3 分钟。多图重建不做。
+
+【目标】
+实现 TripoSplat 异步 worker：接收照片 → 创建 job → 调用 TripoSplat
+推理 → 尺度校准 → 生成 preview → 写入 visual_model。
+
+【输入】
+- visual.reconstruction_job 表（已存在）
+- TripoSplat 开源权重和推理脚本
+- Step 11 visual_model_service
+
+【输出】
+- backend/app/services/reconstruction_service.py
+- backend/worker/triposplat_worker.py（消费 job queue）
+- backend/worker/__init__.py
+- backend/app/api/reconstruction.py
+  - POST /api/v1/buildings/{id}/reconstruction/single-photo
+    body: {photo_url, length, width, height, floors_count}
+  - GET /api/v1/reconstruction/jobs/{job_id}/status
+  - GET /api/v1/reconstruction/jobs（列表）
+  - POST /api/v1/reconstruction/jobs/{job_id}/retry
+  - DELETE /api/v1/reconstruction/jobs/{job_id}
+
+【技术要求】
+1. job queue 用 Redis（LIST 数据结构，LPUSH/BRPOP）或 PostgreSQL 表
+   轮询。一期用 PostgreSQL 表 + SELECT FOR UPDATE SKIP LOCKED，简化部署
+2. reconstruction_job 状态：PENDING → RUNNING → SUCCEEDED / FAILED
+3. TripoSplat 推理：加载预训练权重 → 输入照片 → 输出 .ply
+4. 尺度校准：用户输入的 length/width/floors_count 校准 splat 尺度
+5. 生成 preview：从 splat 渲染一张缩略图
+6. 产物存储：data/reconstruction/{job_id}/output.ply + preview.png
+7. 写入 building_visual_model：model_kind = 'splat'，model_url 指向 .ply
+8. 失败重试：最多 3 次，间隔 60s
+9. worker 独立进程：python -m worker.triposplat_worker
+10. 不训练模型，只用开源权重推理
+11. 多模态输入规避（参全局约束第 10 条）：worker 进程调 TripoSplat
+    推理时不走 LLM，照片只喂本地模型，运行期不触发 GLM 400。但开发
+    验收阶段禁止 AI 用 Read 工具读用户上传照片或 preview.png，会触发
+    同样的 400。验收图片用脚本看尺寸/EXIF/文件大小
+    （PIL.Image.open + os.path.getsize），要看视觉内容用图片查看器。
+
+【依赖】
+- Step 11 visual_model_service
+- Step 02 简单认证（需登录）
+
+【验收标准】
+- 上传一张建筑正脸照片，job 进入 PENDING
+- worker 消费后状态变 RUNNING，最终 SUCCEEDED
+- 生成的 .ply 文件能被前端 CesiumJS 加载
+- 失败 job 能重试
+- 产物文件路径规范
+
+================================================================
+Step 13：前端应用壳 + 设计系统
+================================================================
+
+【背景】
+前端从零开始。先搭应用壳 + 定义设计系统（色板、字体、组件库、
+布局规范），后续所有页面基于这套系统。
+
+【目标】
+搭起 Vue 3 + TS + Vite + Pinia + Vue Router + Ant Design Vue 应用骨架，
+定义设计令牌（design token）和主题，实现全局布局和登录页。
+
+【输入】
+- 后端 Step 02 的登录 API
+- 视觉风格定版（见全局背景）
+
+【输出】
+- frontend/package.json
+- frontend/vite.config.ts
+- frontend/tsconfig.json
+- frontend/index.html
+- frontend/src/main.ts
+- frontend/src/App.vue
+- frontend/src/router/index.ts（路由表，含登录守卫）
+- frontend/src/stores/
+  - auth.ts（用户/角色/权限/JWT）
+  - context.ts（全局上下文：site/building/time_range/metric）
+- frontend/src/api/（axios 封装 + 各模块 API 调用）
+  - client.ts（axios 实例 + JWT 拦截器）
+  - auth.ts / query.ts / upload.ts / knowledge.ts / visual.ts ...
+- frontend/src/layouts/
+  - DefaultLayout.vue（顶栏 + 左侧导航 + 主内容 + 右侧 AI 抽屉）
+  - AuthLayout.vue（登录页用）
+- frontend/src/styles/
+  - tokens.scss（设计令牌：颜色 / 字体 / 间距 / 阴影）
+  - theme.ts（Ant Design Vue 主题定制）
+  - global.scss（全局样式 + 8px 网格）
+- frontend/src/views/
+  - Login.vue（登录页）
+- frontend/src/components/
+  - AiDrawer.vue（右侧 AI 抽屉骨架，内容在 Step 18 实现）
+
+【技术要求】
+1. 色板（写入 tokens.scss）：
+   $color-concrete: #4A4A4A  （暖灰，主文本）
+   $color-stone: #5A6B7C     （岩蓝灰，次级文本/图标）
+   $color-paper: #F5F2EB     （暖白，页面背景）
+   $color-card: #FFFFFF      （纯白，卡片背景）
+   $color-amber: #D49B3B     （琥珀，主要强调）
+   $color-green: #3D7E6A     （翠绿，节能/正常）
+   $color-line: #D1CEC5      （细线分割）
+   $color-text-secondary: #8A8275
+2. 8px 网格：所有间距、尺寸是 8 的倍数（8/16/24/32/48/64）
+3. Ant Design Vue 主题定制：用 ConfigProvider，主色改为琥珀色
+4. 字体：标题用粗字重（600/700），正文 400，字体族优先思源黑体或微软雅黑
+5. 路由：/login（公开）/ /register（公开）/ /park（园区）/ /analysis（分析中心）/
+         /data-hub（数据接入与建模）/ /settings（系统设置）
+6. 登录守卫：未登录跳 /login，登录后跳 /park
+7. JWT 管理：存 localStorage，axios 拦截器自动带 Authorization
+8. 不做角色权限 UI，前端所有菜单对所有登录用户可见
+9. Pinia context store：全局上下文，AI 抽屉自动继承
+10. 右侧 AI 抽屉：默认收起，点击按钮展开，宽度 400px
+11. 登录页设计：建筑运营/设施管理风格，低饱和建筑体块或园区轮廓背景，
+    材质偏玻璃/金属/石材，深灰岩蓝暖白为主，少量琥珀色状态强调。
+    登录页下方有"体验 demo 账号"按钮（demo / demo123 一键登录）和
+    "没有账号？立即注册"链接
+12. 注册页设计：与登录页同风格，表单字段：用户名/密码/确认密码/邮箱(可选)，
+    密码强度提示（最少 8 位含字母和数字）
+13. 左侧导航：垂直菜单，图标 + 文字，展开/收起切换
+14. 顶栏：站点切换 / 时间范围 / 指标切换 / 搜索 / 用户头像下拉（含退出登录）
+
+【依赖】
+- 后端 Step 02 注册 + 登录 API
+
+【验收标准】
+- npm run dev 能启动，访问 localhost:5173
+- 注册新账号后用该账号登录，跳转 /park
+- 登录页"体验 demo"按钮能直接用 demo / demo123 登录
+- 未登录访问 /park 跳 /login
+- 未登录访问 /park 跳 /login
+- 主题色正确应用（琥珀色按钮、暖白背景）
+- 8px 网格生效（检查元素间距都是 8 的倍数）
+
+================================================================
+Step 14：园区 3D 探索页
+================================================================
+
+【背景】
+核心展示页。用 CesiumJS 渲染园区场景，默认体块模式，点击建筑
+打开右侧抽屉看详情。删除楼层/区域 drilldown（BDG2 没数据）。
+
+【目标】
+实现园区 3D 探索页：CesiumJS 渲染建筑群 + 体块/splat 加载 +
+着色映射 + hover/click 交互 + 右侧建筑详情抽屉。
+
+【输入】
+- 后端 Step 11 的 scene API
+- 后端 Step 12 的 splat 文件（如果客户上传过照片）
+- 后端 Step 07 的查询 API（建筑详情数据）
+
+【输出】
+- frontend/src/views/Park.vue
+- frontend/src/components/park/
+  - CesiumViewer.vue（CesiumJS 容器）
+  - BuildingBlock.vue（体块模式渲染）
+  - BuildingSplat.vue（splat 模式渲染）
+  - BuildingTooltip.vue（hover tooltip）
+  - BuildingDetailDrawer.vue（右侧抽屉）
+  - MetricSelector.vue（顶栏指标切换）
+  - TimeRangeSelector.vue（顶栏时间范围）
+- frontend/src/stores/park.ts（园区状态）
+
+【技术要求】
+1. CesiumJS 加载：默认视角俯瞰园区，鼠标可旋转/缩放/平移
+2. 体块模式：每个 building 用 BoxGeometry 渲染，尺寸来自 scene API
+3. splat 模式：如果 model_kind = 'splat'，加载 .ply 文件
+   用 cesium-gaussian-splats 或类似库
+4. 颜色映射：根据当前指标（EUI / 总能耗 / 异常数）映射建筑颜色
+   - 低能耗：翠绿 #3D7E6A
+   - 中能耗：暖灰 #4A4A4A
+   - 高能耗：琥珀 #D49B3B
+   - 异常严重：深琥珀或红色
+5. 屋顶 halo：异常建筑屋顶有发光圆环
+6. 能源构成 badge：建筑上方小型堆叠条，显示各能源类型占比
+7. hover：tooltip 显示建筑名 + 当前指标值 + 异常数
+8. click：右侧抽屉打开，显示 4 个 tab：概览 / 能耗 / 异常 / 助手
+   （删除"空间"tab，因为没楼层/区域数据）
+9. 顶栏：站点切换 / 时间范围 / 指标切换
+10. 左侧导航：固定导航栏
+11. 右侧 AI 抽屉：与建筑详情抽屉共用右侧区域，切换显示
+
+【依赖】
+- Step 13 前端壳
+- 后端 Step 11 scene API
+- 后端 Step 07 查询 API
+- 后端 Step 08 异常 API
+
+【验收标准】
+- 页面加载后看到 6 栋楼体块
+- 鼠标 hover 显示 tooltip
+- click 打开右侧抽屉
+- 指标切换后建筑颜色实时变化
+- 有 splat 模型的楼能正确加载 .ply
+- 时间范围切换后数据刷新
+
+================================================================
+Step 15：分析中心页
+================================================================
+
+【背景】
+原 Step 16 提到四个一级页面，但之前规划漏了分析中心。分析中心
+是数据深挖页：多建筑对比、能耗排名、EUI 基准、异常汇总、
+能耗与天气关联分析。
+
+【目标】
+实现分析中心页，集成 ECharts 图表，提供多维数据分析。
+
+【输入】
+- 后端 Step 07 查询 API
+- 后端 Step 08 异常 API
+- 后端 Step 06 数据质量 API
+
+【输出】
+- frontend/src/views/Analysis.vue
+- frontend/src/components/analysis/
+  - BuildingRanking.vue（建筑能耗排名）
+  - BuildingCompare.vue（多建筑对比）
+  - EuiBaseline.vue（EUI 基准对比）
+  - AnomalyOverview.vue（异常汇总）
+  - WeatherCorrelation.vue（能耗与天气关联）
+  - DataQualityPanel.vue（数据质量面板）
+- frontend/src/styles/echarts-theme.ts（ECharts 主题）
+
+【技术要求】
+1. ECharts 主题：色板用视觉风格定版的颜色，字体一致
+2. 建筑排名：横向柱状图，按 EUI 或总能耗排序，前 3 名琥珀色高亮
+3. 多建筑对比：折线图，支持最多 6 栋楼同时序对比
+4. EUI 基准：每栋楼 EUI 与同类建筑均值对比，用参考线标注
+5. 异常汇总：饼图（异常类型分布）+ 列表（异常事件）
+6. 能耗与天气：双轴折线图，能耗 + 气温，散点图显示相关性
+7. 数据质量面板：雷达图或卡片展示 6 项指标
+8. 所有图表支持时间范围切换
+9. 所有图表数据来自后端 API，不前端计算
+10. 响应式：支持 2 列 / 3 列网格布局
+
+【依赖】
+- Step 13 前端壳
+- 后端 Step 07/08/06 API
+
+【验收标准】
+- 排名图正确反映 6 栋楼能耗排序
+- 对比图能同时显示多栋楼时序
+- EUI 基准图标注同类均值参考线
+- 异常汇总反映 Step 08 的检测结果
+- 天气关联图能看出能耗与气温的相关性
+
+================================================================
+Step 16：数据接入与 3D 建模中心页
+================================================================
+
+【背景】
+原 Step 19 的"数据接入与3D建模中心"。同一页面完成数据上传和
+3D 模型生成。简化原 Step 19 的 9 个模块为：数据上传 + 字段映射
++ 体块建模 + 单图建模。
+
+【目标】
+实现数据接入与 3D 建模中心页：模板下载 + 文件上传 + 字段映射
+向导 + 批处理任务列表 + 体块参数 + 单图建模上传。
+
+【输入】
+- 后端 Step 04 上传 API
+- 后端 Step 05 导入 API
+- 后端 Step 11 体块 API
+- 后端 Step 12 重建 API
+
+【输出】
+- frontend/src/views/DataHub.vue
+- frontend/src/components/data-hub/
+  - TemplateDownload.vue（模板下载）
+  - FileUpload.vue（文件上传，支持拖拽）
+  - MappingWizard.vue（字段映射向导，分步）
+  - BatchList.vue（批处理任务列表）
+  - BlockModelForm.vue（体块参数表单）
+  - SinglePhotoUpload.vue（单图建模上传）
+  - JobStatusList.vue（重建任务状态列表）
+  - ModelPreview.vue（模型预览）
+
+【技术要求】
+1. 模板下载：提供 buildings.csv / readings.csv / weather.csv 模板
+2. 文件上传：支持拖拽 + 点击，支持 .csv / .xlsx，显示上传进度
+3. 字段映射向导：分 3 步（列名确认 → 时间格式 → 单位时区），
+   每步可回退，最后一步预览校验结果
+4. 批处理任务列表：显示最近 20 个 import_batch，状态实时刷新
+5. 体块参数表单：length/width/height/floors_count，提交后调
+   /buildings/{id}/visual-models/block
+6. 单图建模上传：拖拽照片 + 填尺寸 → 提交 → job 进入队列
+7. 重建任务状态列表：轮询 job 状态，完成后显示 preview 图
+8. 错误信息可见：校验错误、job 失败原因明确展示
+9. 左侧 tab 切换：数据上传 / 3D 建模 两个子模块
+
+【依赖】
+- Step 13 前端壳
+- 后端 Step 04/05/11/12 API
+
+【验收标准】
+- 能下载模板
+- 能上传 CSV 走完三层级流程
+- 字段映射向导分步操作流畅
+- 体块参数提交后能在园区页看到新模型
+- 单图上传后 job 状态正确流转，完成后有 preview
+
+================================================================
+Step 17：系统设置页
+================================================================
+
+【背景】
+原 Step 16 提到"系统设置"页但未展开。认证已简化为单 admin，
+本步只做：账号设置 + API Key 配置 + 数据源配置。不做用户/角色/租户管理。
+
+【目标】
+实现系统设置页：修改密码 + API Key 配置 + 数据源配置 + 关于信息。
+
+【输入】
+- 后端 Step 02 简单认证 API（修改密码）
+- 后端 Step 03 seed API（数据源配置）
+- core.tenant 表
+
+【输出】
+- frontend/src/views/Settings.vue
+- frontend/src/components/settings/
+  - AccountSettings.vue（修改密码 + 显示当前用户信息 + 显示当前租户信息）
+  - ApiKeyConfig.vue（GLM API key / BGE 模型路径配置）
+  - DataSourceConfig.vue（数据源配置：BDG2 demo / 客户数据）
+  - AboutPanel.vue（系统版本 / 技术栈 / GitHub 链接）
+
+【技术要求】
+1. 账号设置：显示用户名、显示名，提供修改密码表单（旧密码 + 新密码 + 确认）
+2. API Key 配置：
+   - GLM API Key 输入框（密文显示，可点击查看）
+   - BGE 模型路径输入框（本地模型路径）
+   - 测试连接按钮：调后端测试 LLM 和 embedding 是否可用
+3. 数据源配置：
+   - 显示当前 demo 数据状态（楼数/读数/异常数）
+   - 重新 seed 按钮（调 /api/v1/admin/seed-demo，二次确认）
+   - 显示最近一次 seed 的时间和批次
+4. 关于面板：系统版本 / 技术栈列表 / GitHub 仓库链接 / 开源许可
+5. 所有敏感操作（修改密码 / 重新 seed）二次确认
+6. 表单用 Ant Design Vue Form，校验规则完整
+
+【依赖】
+- Step 13 前端壳
+- 后端 Step 02 简单认证 API
+- 后端 Step 03 seed API
+
+【验收标准】
+- 能修改自己密码，修改后用新密码能登录
+- 能配置 GLM API Key 并测试连接
+- 能看到当前 demo 数据状态
+- 重新 seed 后园区页数据刷新
+- About 面板显示正确的版本和链接
+
+================================================================
+Step 18：全局 AI 抽屉
+================================================================
+
+【背景】
+原 Step 20 拆为两个 step。本步是核心：实现 AI 抽屉完整功能，
+包含数据问答 + 异常诊断 RAG + 节能优化建议 RAG + 标准查询。
+LLM 用智谱 GLM，工具调用能力。
+
+【目标】
+实现全局 AI 抽屉：自动继承上下文 + 自然语言问答 + 工具调用 +
+三路混检 RAG + 引用审计。
+
+【输入】
+- 后端 Step 07 查询 API（工具）
+- 后端 Step 08 异常 API（工具）
+- 后端 Step 10 检索 API（RAG）
+- 智谱 GLM API
+
+【输出】
+- backend/app/services/llm_service.py（GLM 封装）
+- backend/app/services/agent_service.py（工具编排）
+- backend/app/services/qa_service.py（问答主流程）
+- backend/app/tools/（LLM 可调用的工具）
+  - query_building_energy.py
+  - query_anomalies.py
+  - query_park_overview.py
+  - search_knowledge.py（三路混检）
+- backend/app/api/assistant.py
+  - POST /api/v1/assistant/sessions（创建会话）
+  - POST /api/v1/assistant/sessions/{id}/messages
+  - GET /api/v1/assistant/sessions/{id}/messages（历史）
+  - GET /api/v1/assistant/sessions（列表）
+  - GET /api/v1/assistant/messages/{id}/optimization-plan（节能优化结构化数据）
+  - POST /api/v1/assistant/messages/{id}/export-pdf（导出节能方案 PDF）
+- backend/app/services/pdf_export_service.py（weasyprint HTML→PDF）
+- backend/app/templates/optimization_report.html（节能方案 PDF 模板）
+- frontend/src/components/ai-drawer/
+  - AiDrawer.vue（抽屉容器）
+  - ChatList.vue（消息列表）
+  - MessageBubble.vue（消息气泡，区分 user/assistant/tool）
+  - ToolCallCard.vue（工具调用卡片）
+  - EvidenceCard.vue（引用证据卡片）
+  - ContextIndicator.vue（当前上下文显示）
+  - QuickQuestions.vue（建议问题）
+  - OptimizationPlanCard.vue（节能优化四段结构卡片）
+  - ProblemItem.vue（问题卡片）
+  - MeasureItem.vue（措施卡片）
+  - PriorityList.vue（优先级列表）
+  - PdfExportButton.vue（PDF 导出按钮）
+
+【技术要求】
+1. 上下文继承：抽屉自动读取 Pinia context store，每条消息带上下文
+   （site_id / building_id / time_range / current_metric）
+2. 工具调用：LLM 通过 function calling 调用工具，不直接生成数字
+3. 工具列表：
+   - query_park_overview：查园区总览
+   - query_building_energy：查建筑能耗时序
+   - query_anomalies：查异常事件
+   - search_knowledge：三路混检知识库
+4. 回答结构：自然语言总结 + 工具调用链 + 数据证据卡片 + 文档引用
+5. 数据证据卡片：展示查询返回的关键数字（EUI / 总能耗 / 异常数）
+6. 文档引用：search_knowledge 返回的 chunk，显示标准号 + 条款号 + 原文片段
+7. 会话持久化：写入 knowledge.assistant_session / assistant_message
+8. 审计字段：每条消息记录 tools_called / tool_results / retrieved_chunks
+9. 三场景支持：
+   - 数据问答：用户问"这栋楼上个月用电情况" → 调查询工具 → 总结
+   - 异常诊断：用户问"异常原因" → 调异常 + 检索工具 → 综合分析
+   - 节能优化：用户问"节能空间" → 调查询 + 检索工具 → 结构化输出（见第 13 条）
+   - 标准查询：用户问"EUI 限值是多少" → 调检索工具 → 引用回答
+10. QuickQuestions：根据当前上下文动态推荐 3-5 个问题
+11. 流式输出：LLM 回答流式返回，前端逐字显示
+12. 错误处理：工具调用失败时友好提示，不让整个回答崩
+13. 节能优化场景深化（结构化输出 + PDF 导出）：
+    a. 结构化输出：节能优化场景的回答必须按四段结构输出，LLM 输出 JSON，
+       前端用卡片渲染（不是散文）：
+       - summary：一句话总结（建筑能耗整体评价）
+       - problems[]：主要问题列表，每条含 problem_desc / evidence_ref / severity
+         基于 BASELINE_DEVIATION 横向对比和异常 evidence，列 2-3 个最显著问题
+       - measures[]：节能措施清单，每条含 measure_name / saved_kwh / saved_co2 /
+         payback_months / difficulty / clause_ref（国标条款引用）
+       - priorities[]：优先级建议，按"节能率 ÷ 实施难度"排序，给 top 3
+    b. LLM Prompt 设计：节能优化场景的 system prompt 用 JSON Schema 约束输出格式，
+       LLM 输出 JSON，后端解析后存入 assistant_message.tool_results，
+       前端调 GET /api/v1/assistant/messages/{id}/optimization-plan 拿结构化数据
+    c. PDF 导出：回答末尾提供"导出节能方案 PDF"按钮
+       - 后端 POST /api/v1/assistant/messages/{id}/export-pdf
+       - 用 weasyprint 生成 PDF（HTML 模板 + ECharts 服务端渲染图片）
+       - PDF 内容：四段结构 + EUI 趋势图 + 异常分布图 + 引用条款原文
+       - 文件名：节能方案_{building_name}_{date}.pdf
+14. 新增前端组件（节能优化场景专用）：
+    - OptimizationPlanCard.vue：四段结构化卡片渲染容器
+    - ProblemItem.vue：单条问题卡片（描述 + 证据 + 严重度徽章）
+    - MeasureItem.vue：单条措施卡片（saved_kwh / saved_co2 / 回收期 / 难度 / 条款引用）
+    - PriorityList.vue：优先级 top 3 列表
+    - PdfExportButton.vue：导出按钮 + 下载进度
+15. LLM 多模态输入约束（参全局约束第 10 条）：后端调智谱 GLM-4.5 是
+    纯文本模型，工具返回值必须是 JSON 或纯文本，不返回图片或 image
+    base64。第 13 条 c 点 PDF 导出里的 ECharts 服务端渲染图是嵌入
+    PDF 给人看，不是喂 LLM。未来若扩展"用户在抽屉上传图问问题"
+    功能，要么换 GLM-4V，要么前端先 OCR/Vision 转文本再喂 GLM-4.5。
+
+【依赖】
+- Step 13 前端壳
+- 后端 Step 07/08/10 API
+- 智谱 GLM API key
+
+【验收标准】
+- 抽屉在园区页和分析页都能打开
+- 问"Bobcat 这栋楼最近 7 天用电情况"能正确调用工具并回答
+- 问"这栋楼异常原因"能调检索工具引用国标条款
+- 问"节能空间"返回四段结构化卡片（不是散文），含 summary/problems/measures/priorities
+- 每条措施有 saved_kwh 数字和国标条款引用
+- 能点击"导出 PDF"下载节能方案 PDF，PDF 含数据图表和引用条款
+- 回答区显示工具调用链和引用证据
+- 会话历史能持久化，刷新页面后仍在
+
+================================================================
+Step 19：能耗预测服务（Prophet + LSTM demo）
+================================================================
+
+【背景】
+参赛主题是"建筑能耗分析与节能优化"，预测是分析的延伸——基于历史
+数据预测未来 7-30 天用电量，用于预算编制和异常预警（实际值偏离
+预测值时报警）。本步只做单楼预测，不做园区总预测。
+
+算法选型考量本机 8GB 显存约束：
+- Prophet 为主：Facebook 开源，CPU 友好，处理节假日/季节性强
+- LSTM 做 1 栋楼 demo：PyTorch 轻量模型（input=1, hidden=32, 2层），
+  纯 CPU 跑，体现算法深度
+- 不上 Transformer（Informer 等）：8GB 显存训练不稳定，风险高
+
+【目标】
+实现单楼能耗预测服务：Prophet 主力 + LSTM demo 对比，异步 job
+队列，MAPE 评估精度，前端预测面板可视化。
+
+【输入】
+- fact.point_reading（历史时序数据，已就绪）
+- mart.v_building_monthly_energy（月度聚合，辅助）
+- Step 07 查询 API（取历史时序）
+
+【输出】
+- prediction_bdg2.sql（独立 SQL 文件，建 mart.prediction_job 表）
+- backend/app/services/prediction_service.py
+  - predict_prophet(building_id, horizon)：Prophet 跑历史 90 天
+  - predict_lstm(building_id, horizon)：PyTorch LSTM 跑单楼 demo
+  - evaluate_mape(actual, predicted)：算 MAPE 评估精度
+- backend/app/worker/prediction_worker.py（异步消费 prediction_job 队列）
+- backend/app/api/prediction.py
+  - POST /api/v1/prediction/buildings/{id}/forecast?horizon=30d&model=prophet
+  - GET /api/v1/prediction/jobs/{id}
+  - GET /api/v1/prediction/buildings/{id}/latest（取最近一次预测结果）
+- 修改 Step 15 分析中心页，新增 PredictionPanel.vue
+  - 折线图：实线历史 + 虚线预测 + 置信区间阴影
+  - 模型切换：Prophet / LSTM 对比
+  - MAPE 显示
+
+【技术要求】
+1. prediction_job 表字段：id / tenant_id / building_id / model_type
+   (prophet/lstm/linear) / horizon_days / status / mape / result_jsonb /
+   started_at / finished_at / error_message / created_at
+2. 状态机：PENDING → RUNNING → SUCCEEDED / FAILED
+3. Prophet 实现：
+   - 取该楼历史 90 天日粒度数据（来自 mart.building_daily_energy）
+   - 用 prophet 库训练，yearly_seasonality / weekly_seasonality 自动
+   - 输出 horizon 天预测 + yhat_lower / yhat_upper 置信区间
+   - 用最后 7 天实际值算 MAPE
+4. LSTM 实现（demo 级别）：
+   - 取该楼历史 90 天日粒度数据
+   - 滑动窗口构造样本：window=14 天 → predict 第 15 天
+   - 模型：LSTM(input=1, hidden=32, num_layers=2, output=1)
+   - 训练 50 epoch，CPU 跑（不依赖 GPU）
+   - 输出 horizon 天预测，无置信区间（或用 dropout MC 估计）
+   - 用最后 7 天实际值算 MAPE
+5. result_jsonb 结构：
+   {history: [{date, value}], forecast: [{date, yhat, yhat_lower, yhat_upper}],
+    mape: 12.5, model_type: "prophet"}
+6. 异步任务：用 PostgreSQL 表 + SELECT FOR UPDATE SKIP LOCKED 轮询
+   （与 Step 12 TripoSplat worker 同一套机制）
+7. worker 独立进程：python -m worker.prediction_worker
+8. 预测 API 需登录（get_current_user 依赖）
+9. 预测结果强制 tenant_id 隔离
+
+【依赖】
+- Step 05 导入服务（数据已就绪）
+- Step 07 查询 API（取历史时序）
+- Step 15 分析中心页（嵌入 PredictionPanel）
+
+【验收标准】
+- 对 Bobcat 6 栋楼跑 Prophet 预测，30 天预测 + 置信区间返回
+- MAPE < 20% 算可用
+- LSTM demo 能跑通至少 1 栋楼
+- 前端 PredictionPanel 渲染实线历史 + 虚线预测 + 置信区间阴影
+- 模型切换 Prophet / LSTM 能对比 MAPE
+
+================================================================
+Step 20：部署打包与测试
+================================================================
+
+【背景】
+项目要开源到 GitHub，要求评委"打包就能用"。dev 和 prod 合一，
+不做 Nginx 反向代理配置（前端用 nginx 容器静态托管，后端 uvicorn）。
+
+【目标】
+实现 docker-compose 一键启动 + Makefile + README + 核心 API 测试。
+
+【输入】
+- 所有前后端代码
+- postgresql_bdg2.sql
+- code/seed_bdg2.py
+
+【输出】
+- docker-compose.yml（合一下，含 postgres / backend / worker / frontend 4 个服务）
+- backend/Dockerfile
+- frontend/Dockerfile（构建产物 + nginx 静态托管）
+- Makefile（make up / down / migrate / seed-demo / test / logs）
+- .env.example（所有环境变量）
+- README.md（一键启动说明 + 项目介绍 + 截图 + 技术栈）
+- backend/tests/
+  - conftest.py（pytest fixture，测试用独立数据库）
+  - test_health.py
+  - test_auth.py
+  - test_query.py
+  - test_upload.py
+  - test_anomaly.py
+  - test_knowledge.py
+  - test_assistant.py
+- frontend/src/__tests__/（少量关键组件 Vitest）
+
+【技术要求】
+1. docker-compose 服务：
+   - postgres：用 postgres:15 镜像，挂载 pgvector 扩展，initdb 执行 SQL
+   - backend：Python 3.11 镜像，uvicorn 启动
+   - worker：同 backend 镜像，启动 trisosplat_worker
+   - frontend：node 构建后 nginx 静态托管
+2. 数据卷：postgres 数据持久化到 ./data/postgres
+3. 环境变量：DATABASE_URL / JWT_SECRET / GLM_API_KEY / REDIS_URL 等
+4. Makefile：
+   - make up：docker-compose up -d
+   - make down：docker-compose down
+   - make migrate：执行 SQL（首次启动）
+   - make seed-demo：触发 demo seed
+   - make test：跑后端 pytest + 前端 vitest
+   - make logs：查看日志
+5. README 内容：项目介绍 / 技术栈 / 一键启动 / 截图 / 目录结构 /
+   开发指南 / 许可证
+6. 后端测试：核心 API 集成测试，用独立测试数据库
+7. 前端测试：登录流程 / 园区页加载 / AI 抽屉交互 三个关键路径
+8. 性能基线（参考，不强制测试）：
+   - 园区总览 < 2s
+   - 单楼 30 天时序 < 1s
+   - AI 抽屉首答 < 5s
+
+【依赖】
+- 所有前序 step 完成
+
+【验收标准】
+- git clone 后 make up && make migrate && make seed-demo 能完整启动
+- 访问 localhost:8080（前端）看到登录页
+- 注册新账号登录后看到园区页（空租户）
+- demo / demo123 登录后看到 6 栋楼 demo 数据
+- make test 通过所有测试
+- README 能让陌生用户 10 分钟内跑起来
+
+================================================================
+【全局约束】
+================================================================
+
+0. 开工前必调合适 skill：代码 / 前端设计 / 文档写作等任何输出前，
+   先扫一眼当前可用的 skills 列表（avoid-ai-writing、de-AI-writing、
+   ui-ux-pro-max、paperforge、docx、pdf、xlsx 等），匹配的就调起来用。
+   尤其代码注释、README、提示词文本，写完用 avoid-ai-writing 过一遍。
+1. 所有代码用中文注释，注释要写详细、写清楚：把 WHY、背景约束、
+   踩过的坑、设计取舍都讲透，不能只写 WHAT。但绝不能有 AI 味：
+   - 不要 `# ─── XXX ───` 这种长下划线 / 等号 / 星号分段
+   - 不要"Step XX 占位"、"本 step 实现 ..." 这种以 step 编号做注释主语
+   - 不要路标词（首先 / 其次 / 总之）、讲义腔、模板句式
+   - 不要协作口吻（"我们来..."、"接下来..."、"让我们一起..."）
+   - 风格像资深工程师写技术笔记，直接、有信息密度
+2. 所有 API 返回统一结构：{code, message, data} 或 {code, message, errors}
+3. 所有 API 强制 tenant_id 隔离
+4. 所有错误不能直接写 fact 表
+5. 所有 LLM 回答必须带工具调用链和引用审计
+6. 所有前端页面遵循设计系统（色板/网格/字体）
+7. 不写伪代码，输出可直接运行的完整代码
+8. 文件名和目录名具体，不占位
+9. 开发环境优先 Windows + Docker，但代码跨平台
+10. 多模态输入规避：本机 Claude Code 后端走 GLM-5-2，纯文本模型，
+   不接受图片/PDF/二进制输入。用 Read 工具读 PDF 或图片会触发
+   "API Error: 400 Model only support text input"。验收 PDF/图片
+   内容时用 Python 脚本提取文本（fitz.get_text / parse_pdf 打印
+   PageText.text）给 AI 看文本，不要让 AI 直接 Read 视觉文件。
+   后端 LLM 选型 GLM-4.5 同样纯文本，任何 step 设计 LLM 调用时不
+   传 image_url/base64；若需多模态问答（如 step18 AI 抽屉接收用户
+   上传图），换 GLM-4V 或前端先 OCR/Vision 转文本再喂 GLM。
+
+================================================================
+【原 提示词.txt 删除/调整的 step】
+================================================================
+
+- 原 Step 1 项目骨架：删除（目录树等代码成熟后自然形成）
+- 原 Step 3 Alembic migration：删除（用现有 SQL 文件）
+- 原 Step 5 BDG2 子集筛选脚本：删除（已手动筛好，数据在 extracted_data/）
+- 原 Step 6 CU-BEMS：删除（不做该数据集）
+- 原 Step 7 demo seed 独立 step：降级为新 Step 03（脚本已写好）
+- 原 Step 15 多图高精重建：删除（不做）
+- 原 Step 20 AI 抽屉：拆为新 Step 10（检索）+ Step 18（AI 抽屉）
+- 原 Step 22 部署：合并到新 Step 20（含测试）
+
+================================================================
+【新增的 step】
+================================================================
+
+- 新 Step 02 注册 + 登录（原计划没有，参考 RAGFlow 模式，一人一租户）
+- 新 Step 19 能耗预测（用户后期决定追加，Prophet + LSTM demo）
+- 新 Step 09 知识库文档导入（原计划没有独立 step）
+- 新 Step 10 三路混检检索 API（原计划没有独立 step）
+- 新 Step 15 分析中心页（原计划漏列）
+- 新 Step 17 系统设置页（原计划漏列）
+
+================================================================
+【执行建议】
+================================================================
+
+1. 严格按 Step 顺序执行，不跳步
+2. 每个 Step 完成后对照验收标准检查
+3. 后端 Step 01-12 完成后，前端 Step 13-18 开始
+4. Step 20 部署打包放最后
+5. 每个 Step 的提示词单独喂给 AI，不要一次性喂多个
+6. 如果某个 Step 卡住，先回头检查依赖的 Step 是否完整
+
+================================================================
