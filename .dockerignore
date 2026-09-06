@@ -15,6 +15,12 @@
 提示词*.txt
 使用说明.md
 README.md
+# requirements.txt 是 pip install 依赖清单, 必须进镜像, 上面 *.txt 会误伤, 取反恢复
+!code/backend/requirements.txt
+
+# 环境配置 (含数据库密码 / API key, 不进镜像, 由 docker-compose environment 注入)
+.env
+**/.env
 
 # Python 缓存 + 本地虚拟环境
 **/__pycache__/

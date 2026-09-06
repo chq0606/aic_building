@@ -8,7 +8,8 @@
 # ============================================================================
 
 # ─── Stage 1: 构建 ──────────────────────────────────────────────────────────
-FROM node:20-slim AS builder
+# pnpm@11 需要 Node 22 (node:20 缺内置模块会报 ERR_UNKNOWN_BUILTIN_MODULE)
+FROM node:22-slim AS builder
 
 WORKDIR /build
 

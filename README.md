@@ -2,9 +2,13 @@
 
 > 基于 PostgreSQL + pgvector + Vue3 + FastAPI 的建筑能耗分析平台, 集成能耗预测 / 异常检测 / 知识库 / AI 抽屉 / 3D 重建全栈能力.
 
+## 效果预览
+
+![园区探索页](图片/运行图片/园区探索页.png)
+
 ## 项目亮点
 
-- **数据底座** PostgreSQL 15 + pgvector 向量检索, 5 schema 分层 (core/ingest/fact/mart/knowledge/visual)
+- **数据底座** PostgreSQL 15 + pgvector 向量检索, 5 schema 分层 (core / ingest / fact / mart / knowledge)
 - **能耗预测** Prophet 主力 + LSTM demo + linear baseline, 异步 worker 跑训练 + MAPE 评估
 - **异常检测** Step 08, 基于 Z-score + 滑动窗口的能耗异常自动识别 + 证据链
 - **知识库** Step 09-10, PDF 导入 + PyMuPDF 解析 + EasyOCR 扫描件 + BGE embedding + 三路混检 (向量/关键词/元数据)
@@ -34,7 +38,7 @@ cp .env.example .env
 # 2. 启动 5 个服务 (postgres + backend + prediction_worker + frontend, + triposplat_worker 需 --profile gpu)
 make up
 
-# 3. 灌 BDG2 demo 数据 (6 栋楼 / 1 年能耗 / ~15000 条 hourly 读数)
+# 3. 灌 BDG2 demo 数据 (6 栋楼 / 1 年能耗 / ~17 万条 hourly 读数)
 make seed-demo
 
 # 4. 浏览器打开
@@ -52,6 +56,8 @@ make download-ckpts
 make gpu-up
 ```
 
+> 想快速体验单图重建？可直接用项目自带样例照片 [`图片/重建图片/3d2.jpg`](图片/重建图片/3d2.jpg)：登录 demo 后进「数据接入 → 3D 建模」tab，上传它、填好尺寸即可提交重建 job 玩一下。
+
 ## 技术栈
 
 | 层 | 技术 | 版本 |
@@ -68,7 +74,9 @@ make gpu-up
 
 ```
 aic_building/
-├── init.sql                  # 合并后的 SQL 初始化 (12 个 step SQL 拼接, 自动跑)
+├── sql/
+│   ├── init.sql               # 合并后的 SQL (19 个增量 SQL), docker 首次启动自动执行
+│   └── step*.sql / *_bdg2.sql # 增量 SQL 源文件
 ├── docker-compose.yml        # 5 服务编排 (postgres/backend/2 workers/frontend)
 ├── Makefile                  # up/down/migrate/seed-demo/test/logs/clean/download-ckpts
 ├── .env.example              # 环境变量样例
@@ -113,7 +121,7 @@ aic_building/
 │
 ├── extracted_data/          # BDG2 demo CSV 数据 (metadata/readings_2017/weather_2017)
 ├── tools/
-│   └── merge_sql.py          # 12 个 SQL 合并成 init.sql
+│   └── merge_sql.py          # 19 个增量 SQL 合并成 sql/init.sql
 ├── data/postgres/           # PostgreSQL 数据持久化 (gitignored)
 └── 工作记录_*.md            # 开发日志 (Step 01-20)
 ```
@@ -213,6 +221,19 @@ A: 能打开, 但发消息会返 "GLM_API_KEY 未配置" 诊断错误. 其他功
 **Q: prophet 装不上?**
 A: 用 prophet==1.3.0 (自带预编译 CmdStan-2.37.0). 老版 1.1.5 不兼容 numpy 2.x 且要本地编译 CmdStan.
 
+## AI 辅助开发说明
+
+本项目在开发过程中使用 AI 编程助手（Claude Code）辅助实现，架构设计、需求评审、代码审查与验收均由人工完成。
+
 ## 许可证
 
-MIT License, 见 [LICENSE](LICENSE).
+本项目代码以 [MIT License](LICENSE) 开源：任何人可自由使用、修改、分发，只需保留版权声明。
+
+**第三方资源声明**（各自遵循其原始许可，不包含在本项目 MIT 授权内）：
+
+| 资源 | 用途 | 是否入仓库 |
+|------|------|-----------|
+| BDG2 数据集 ([Building Data Genome Project 2](https://github.com/buds-lab/building-data-genome-project-2)) | demo 种子数据 | ✅ `extracted_data/` 6 栋楼 2017 年子集 (~17 万条) |
+| TripoSplat 重建权重 (VAST-AI) | 单图 3D 重建 | ❌ `make download-ckpts` 单独下载 |
+| BGE-M3 embedding 模型 (BAAI) | 知识库向量化 | ❌ 首次运行自动下载 |
+| 国标 / 行业标准 PDF (GB 55015 等) | 知识库演示 | ❌ 有版权, 用户自行准备 |

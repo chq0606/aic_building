@@ -45,8 +45,8 @@ def init_pool() -> None:
         # psycopg2 的 C 扩展 _connect 用 UTF-8 解这些字节就炸, position 不是 dsn
         # 里的位置, 是 server notice 里的位置。0xd6 是 GBK 中文字符首字节
         # (如"数"= 0xca 0xfd, "服"= 0xb7 0xfe)。dsn 全 ASCII 不背锅。
-        # 治本: 改 E:/PostgreSQL/15/data/postgresql.conf 的 lc_messages='C'
-        # 然后 net stop/start postgresql-x64-15 重启 PG 服务。
+        # 治本: 改 postgresql.conf (Windows 默认在 PG 安装目录 data/ 下) 的
+        # lc_messages='C', 然后重启 PG 服务。
         dsn = settings.database_url
         non_ascii = [(i, b) for i, b in enumerate(dsn.encode("utf-8")) if b > 127]
         logger.error(

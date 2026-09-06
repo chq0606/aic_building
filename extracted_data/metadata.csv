@@ -1,0 +1,7 @@
+building_id,site_id,building_id_kaggle,site_id_kaggle,primaryspaceusage,sub_primaryspaceusage,sqm,sqft,lat,lng,timezone,electricity,hotwater,chilledwater,steam,water,irrigation,solar,gas,industry,subindustry,heatingtype,yearbuilt,date_opened,numberoffloors,occupants,energystarscore,eui,site_eui,source_eui,leed_level,rating
+Bobcat_education_Alissa,Bobcat,1000.0,10.0,Education,Academic,11254.8,121146.0,,,US/Mountain,Yes,Yes,Yes,,Yes,,Yes,Yes,,,,,,2.0,0.0,,,,,,
+Bobcat_assembly_Franklin,Bobcat,1002.0,10.0,Entertainment/public assembly,Sports Facility,15047.4,161969.0,,,US/Mountain,Yes,,Yes,,Yes,,,Yes,,,,,,1.0,0.0,,,,,,
+Bobcat_science_Tammy,Bobcat,1017.0,10.0,Technology/science,Science Facility,10150.9,109263.0,,,US/Mountain,Yes,Yes,Yes,,Yes,,,,,,,,,6.0,0.0,,,,,,
+Bobcat_education_Dylan,Bobcat,1018.0,10.0,Education,Student Center,17358.0,186840.0,,,US/Mountain,Yes,Yes,Yes,,Yes,,Yes,,,,,,,2.0,0.0,,,,,,
+Bobcat_public_Angie,Bobcat,,10.0,Public services,Library,14777.3,159062.0,,,US/Mountain,Yes,Yes,Yes,,Yes,,,,,,,,,2.0,0.0,,,,,,
+Bobcat_education_Seth,Bobcat,,10.0,Education,Academic,17179.3,184917.0,,,US/Mountain,Yes,Yes,Yes,,Yes,,,Yes,,,,,,4.0,0.0,,,,,,

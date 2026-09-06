@@ -8,7 +8,7 @@
 （执行 `postgresql_bdg2.sql` 和 `auth_bdg2.sql`）。
 
 ```bash
-conda activate building_aic
+conda activate aic
 pip install -r requirements.txt
 ```
 

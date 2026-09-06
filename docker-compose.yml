@@ -25,12 +25,11 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: aic_building
-      # Chinese locale 排序中文友好
-      LC_COLLATE: zh_CN.UTF-8
-      LC_CTYPE: zh_CN.UTF-8
+      # 不设 LC_COLLATE/LC_CTYPE: pgvector:pg15 镜像没有 zh_CN.UTF-8 locale,
+      # 设了会 initdb 报 invalid locale settings。默认 C locale 即可, 中文按 UTF-8 字节序排序
     volumes:
-      # init.sql 首次启动自动跑 (建扩展 + 5 schema + 12 个 SQL 文件合并)
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # init.sql 首次启动自动跑 (建扩展 + 5 schema + 19 个增量 SQL 合并)
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       # 数据持久化到本机 (Windows 用 WSL2 性能好, NTFS 直挂慢)
       - ./data/postgres:/var/lib/postgresql/data
     ports:
@@ -69,6 +68,8 @@ services:
       - ./code/backend/logs:/app/logs
       # BDG2 demo 数据 (seed_bdg2.py 用)
       - ./extracted_data:/app/extracted_data:ro
+      # seed 脚本 (make seed-demo 用, 单独挂载避免 COPY 进镜像)
+      - ./code/seed_bdg2.py:/app/seed_bdg2.py:ro
     ports:
       - "8000:8000"
     depends_on:

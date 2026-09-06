@@ -3,7 +3,7 @@
 
 跑法:
     cd backend
-    e:/anaconda/envs/building_aic/python.exe -m worker.prediction_worker
+    python -m worker.prediction_worker
 
 工作流 (复用 Step 12 reconstruction_worker 的模式):
 1. 主循环每 prediction_poll_interval (5s) 轮询 DB:

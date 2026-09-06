@@ -51,12 +51,8 @@ data/postgres/
 code/backend/data/uploads/
 code/backend/data/imports/
 
-# 模型权重 (TripoSplat 3.6GB, BGE 1GB)
-code/backend/storage/triposplat/ckpts/
-code/backend/storage/huggingface/
-code/backend/storage/knowledge/
-code/backend/storage/reconstruction/
-code/backend/storage/uploads/
+# 运行时产物 (模型权重/上传文件/重建输出), 全部不进 git, 由 docker volume 或应用运行时生成
+code/backend/storage/
 
 # 日志
 code/backend/logs/
@@ -74,8 +70,8 @@ code/backend/logs/
 .cache/
 tmp/
 
-# ---- 原始数据 / 测试文件 (不进 git) ----
+# ---- 原始数据 / 测试文件 ----
+# BDG2 全量原始数据 (355MB) 不进 git, demo 种子数据在 extracted_data/ (已提交)
 dataset/
+# 国标 PDF (381MB, 有版权) 不进 git, 用户自行下载或用 sample
 test_pdfs/
-extracted_data/
-code/backend/storage/tripoosplat/

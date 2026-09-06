@@ -30,9 +30,9 @@ migrate:
 	@echo "init.sql 已在 postgres 容器首次启动时自动执行, 无需手动 migrate"
 	@echo "若需强制重跑: make clean && make up"
 
-# 灌 BDG2 demo 数据 (1 tenant + 1 site + 6 buildings + ~15000 readings)
+# 灌 BDG2 demo 数据 (1 tenant + 1 site + 6 buildings + ~16.9 万 readings)
 seed-demo:
-	docker compose exec backend python code/seed_bdg2.py
+	docker compose exec backend python /app/seed_bdg2.py
 
 # 跑后端 pytest + 前端 vitest
 test:

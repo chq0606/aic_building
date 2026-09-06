@@ -220,10 +220,9 @@ def render_preview(ply_path: Path, output_png: Path, image_size: int = 500) -> d
         x[idx], y[idx], colors[idx], opacities[idx], radius_px[idx]
     )
 
-    # Pillow ImageDraw 渲染 (2026-07-29 退回方案):
-    # 之前用 matplotlib scatter, 但 matplotlib 的 C 扩展 _path.pyd 被 Windows
-    # Smart App Control (Enforce 模式) 拦截, worker 启动 import 失败。退回
-    # Pillow, 不依赖 matplotlib。
+    # Pillow ImageDraw 渲染:
+    # 之前用 matplotlib scatter, 但 matplotlib 的 C 扩展 _path.pyd 在部分
+    # Windows 环境 import 会有兼容问题。退回 Pillow, 减少 C 扩展依赖。
     #
     # Pillow ImageDraw.ellipse 逐个画圆, 实测 13 万个圆约 0.5 秒 (radius 多为
     # 1-3 像素, 单圆开销小), 不需要采样。不透明画圆 (不做 alpha blending),

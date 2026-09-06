@@ -17,9 +17,12 @@
 # ============================================================================
 FROM python:3.11-slim AS builder
 
-# 系统依赖: build-essential 编译 C 扩展, libgl1 + libglib2.0-0 给 easyocr 用
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libgl1 libglib2.0-0 \
+# 系统依赖: libgl1 + libglib2.0-0 给 easyocr 用
+# 所有 Python 包都有预编译 wheel, 不需要 build-essential (省 133MB 编译工具链)
+# apt 源换清华镜像加速 (默认 deb.debian.org 国外源下载慢)
+RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
@@ -43,7 +46,8 @@ FROM python:3.11-slim
 # 运行时系统库: libgl1 (easyocr) + libpq5 (psycopg2) + libglib2.0-0
 # weasyprint 依赖 libpango/libgio, Dockerfile 不装, weasyprint 在容器里跑导出 PDF
 # 会失败 (一期 AI 抽屉导出 PDF 是次要功能, README 标注限制)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends \
     libgl1 libglib2.0-0 libpq5 \
     && rm -rf /var/lib/apt/lists/*
 

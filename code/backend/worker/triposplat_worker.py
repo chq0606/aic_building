@@ -59,8 +59,8 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
     # CUDA_HOME 给 PyTorch cpp_extension 用 (虽然 worker 不需要 JIT 编译, 但
-    # TripoSplat 内部某些 op 可能用到)。设为 conda env 的 Library 目录。
-    os.environ.setdefault("CUDA_HOME", str(BACKEND_ROOT.parent.parent / "anaconda" / "envs" / "building_aic" / "Library"))
+    # TripoSplat 内部某些 op 可能用到)。有需要时通过环境变量 CUDA_HOME 显式
+    # 指定, 不在此硬编码本机 conda 路径 (torch 会自行探测 nvcc)。
 
 from loguru import logger
 
