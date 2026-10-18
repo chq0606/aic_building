@@ -191,6 +191,10 @@ function buildBodyMaterial(): Cesium.MaterialProperty {
 function buildFloorLines() {
   const viewer = viewerRef.value
   if (!viewer || !entity || props.hidden || isRealistic.value) return
+  // 先清旧楼层线再建, 保证幂等。重建楼切模式时 watch(isRealistic) 与 watch(hidden)
+  // 会先后各调一次 applyRenderMode -> buildFloorLines, 不清会以相同 entity id 重复
+  // add, Cesium 抛 "id already exists" 中断后续 watcher 队列。
+  clearFloorLines()
   const pos = position.value
   const L = dims.value.length / 2
   const W = dims.value.width / 2

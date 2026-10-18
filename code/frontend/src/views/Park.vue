@@ -221,10 +221,10 @@ const isEnergyMode = computed(() => park.renderMode === 'energy')
       <!-- 每栋楼挂子组件 (block + 可选 halo + 可选 badge) -->
       <div class="park__entities">
         <template v-for="(b, idx) in park.buildings" :key="b.building_id">
-          <!-- splat 模式: BuildingSplat 可见 (3DGS) + BuildingBlock 隐形 (透明 box 做 click target)
-               非 splat 模式: 只 BuildingBlock 可见 -->
-          <BuildingSplat v-if="isSplatMode(b)" :building="b" :index="idx" />
-          <BuildingBlock :building="b" :index="idx" :hidden="isSplatMode(b)" />
+          <!-- splat 楼只在虚拟外观(realistic)下显示 3DGS; 能效着色(energy)下统一退到体块着色,
+               避免照片颜色干扰园区能耗总览。BuildingBlock 仅在 splat+realistic 时隐形做 click target -->
+          <BuildingSplat v-if="isSplatMode(b) && !isEnergyMode" :building="b" :index="idx" />
+          <BuildingBlock :building="b" :index="idx" :hidden="isSplatMode(b) && !isEnergyMode" />
           <!-- halo / badge 只在能效着色模式显示, 虚拟外观下数据进详情面板 -->
           <AnomalyHalo v-if="isEnergyMode && b.anomaly_status.has_anomaly" :building="b" />
           <EnergyBadge v-if="isEnergyMode" :building="b" />
