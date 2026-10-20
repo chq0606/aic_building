@@ -1,0 +1,10 @@
+**
+!code/
+!code/backend/
+!code/backend/app/
+!code/backend/app/**
+!code/backend/tests/
+!code/backend/tests/**
+!code/backend/fixtures/
+!code/backend/fixtures/**
+!code/backend/requirements.txt

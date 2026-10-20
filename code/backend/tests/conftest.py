@@ -56,6 +56,8 @@ def _demo_data(db_pool):
     一次性查出来缓存, 避免每个 function-scope test 都查库 (TestClient 退出会关 pool,
     下一个 test 进来 pool 已关, 这里查会失败).
     """
+    # An earlier unauthenticated TestClient may already have closed the pool.
+    init_pool()
     with get_conn() as conn:
         with conn.cursor() as cur:
             # demo 用户

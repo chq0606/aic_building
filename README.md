@@ -18,6 +18,8 @@
 | **能耗分析** | 能耗排名 / 多楼时序对比 / EUI 基准（对标 GB 55015 强制限值）/ 异常事件汇总 / 能耗-天气关联 / 数据质量面板 / 预测对比，共 7 类图表 |
 | **能耗预测** | Prophet（主力）/ LSTM（demo）/ Linear（基线）三模型对比，异步 worker 训练 + MAPE 评估 |
 | **异常检测** | Z-score + 滑动窗口自动识别能耗异常，带证据链 |
+| **能耗诊断** | 序列诊断引擎：数据质量 → 参照模型 → 偏差识别 → 证据链，输出能耗偏高核查候选 |
+| **空调节能优化** | 物理仿真模型（舒适温区 / 室内外温度 / 内热 / 太阳辐射）生成制冷方案，输出风扇与制冷策略及节能评估 |
 | **知识库问答** | PDF 导入（PyMuPDF + EasyOCR 扫描件）+ BGE 向量化 + 向量 / 关键词 / 元数据三路混检 |
 | **AI 节能助手** | 智谱 GLM 流式问答 + function call 自动调工具 + 节能方案结构化输出 |
 | **单图 3D 重建** | TripoSplat 单图重建 + Cesium 3D Tiles + 原生 3DGS 渲染 |
@@ -68,7 +70,7 @@ make gpu-up           # 多起 triposplat_worker 容器
 | 后端 | FastAPI + pydantic-settings + psycopg2 连接池 + loguru |
 | 前端 | Vue 3 + TypeScript + Vite + Pinia + Ant Design Vue 4 + SCSS tokens |
 | 可视化 | ECharts（图表）+ Cesium 1.122（3D 体块 / 高斯泼溅） |
-| AI / ML | 智谱 GLM-4.5（问答 / 工具调用）、BGE embedding（向量检索）、Prophet / LSTM / Linear（预测）、TripoSplat（3D 重建） |
+| AI / ML | 智谱 GLM-4.5（问答 / 工具调用）、BGE embedding（向量检索）、Prophet / LSTM / Linear（预测）、TripoSplat（3D 重建）、HVAC 制冷优化（scipy 线性规划 / 矩阵指数）、能耗诊断（时序参照对比） |
 | OCR | EasyOCR + PyMuPDF |
 
 ## 目录结构

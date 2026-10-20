@@ -25,7 +25,7 @@ import {
   Building2, LayoutGrid, BarChart3, Database, Settings as SettingsIcon,
   ChevronLeft, ChevronRight, LogOut, User as UserIcon,
   PanelLeftClose, PanelLeftOpen, Calendar as CalendarIcon, Check,
-  Building, Plus,
+  Building, Plus, Wind,
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useContextStore, type Metric, type TimePreset } from '@/stores/context'
@@ -48,6 +48,7 @@ const menuItems = [
   { key: 'park',        label: '园区探索', icon: LayoutGrid },
   { key: 'floor-view',  label: '楼层分析', icon: Building },
   { key: 'analysis',    label: '分析中心', icon: BarChart3 },
+  { key: 'hvac-optimization', label: '空调节能', icon: Wind },
   { key: 'data-hub',    label: '数据接入', icon: Database },
   { key: 'settings',    label: '系统设置', icon: SettingsIcon },
 ]
@@ -380,14 +381,11 @@ const LogoIcon = h(Building2, { size: 22, 'stroke-width': 2 })
         </nav>
 
         <div v-if="!collapsed" class="sider-footer">
-          <div class="sider-footer__card">
-            <div class="sider-footer__title">节能进度</div>
-            <div class="sider-footer__value">12.4%</div>
-            <div class="sider-footer__sub">本月同比</div>
-            <div class="sider-footer__bar">
-              <div class="sider-footer__bar-fill" />
-            </div>
-          </div>
+          <button class="sider-footer__card" @click="router.push('/hvac-optimization')">
+            <div class="sider-footer__title">节能助手</div>
+            <div class="sider-footer__value">从发现到建议</div>
+            <div class="sider-footer__sub">楼栋核查 · 空调试算</div>
+          </button>
         </div>
       </a-layout-sider>
 
@@ -711,6 +709,9 @@ const LogoIcon = h(Building2, { size: 22, 'stroke-width': 2 })
   padding: 0 $space-1;
 
   &__card {
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
     padding: $space-3;
     background: linear-gradient(135deg, $color-amber-soft 0%, $color-paper 100%);
     border-radius: $radius-md;
@@ -740,20 +741,6 @@ const LogoIcon = h(Building2, { size: 22, 'stroke-width': 2 })
     margin-bottom: $space-2;
   }
 
-  &__bar {
-    height: 4px;
-    background: rgba(61, 126, 106, 0.15);
-    border-radius: $radius-pill;
-    overflow: hidden;
-  }
-
-  &__bar-fill {
-    width: 62%;
-    height: 100%;
-    background: $color-green;
-    border-radius: $radius-pill;
-    transition: width $transition-slow;
-  }
 }
 
 // ---------------------------------------------------------------------------

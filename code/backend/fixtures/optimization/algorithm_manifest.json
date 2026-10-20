@@ -1,0 +1,14 @@
+{
+  "diagnostic_engine.py": {
+    "source": "research/optimization_replay_v6/diagnostic_engine.py",
+    "sha256": "9f6aa0dea079d4da998f6262b6f9c331dd2054d43d79bab80d0bb9d17245180f"
+  },
+  "building_energy_diagnosis.py": {
+    "source": "research/standalone_energy_v1/building_energy_diagnosis.py",
+    "sha256": "2291a975ca5f5254f253c613c206efc294a97c5a18156dd2ed8cf09126252f3a"
+  },
+  "hvac_energy_optimizer.py": {
+    "source": "research/micro_hvac_final_v1/hvac_energy_optimizer.py",
+    "sha256": "6f80c1bcb0b4d8b4de3647a261d8d20f449456955427134ea84ba87522a8fad9"
+  }
+}

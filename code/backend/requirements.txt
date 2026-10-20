@@ -53,3 +53,7 @@ statsmodels==0.14.4
 # httpx 给 FastAPI TestClient 用 (TestClient 内部走 ASGI transport, 需要 httpx)
 pytest==8.3.4
 httpx==0.28.1
+
+# 楼栋分位诊断和设备级预测优化（与已验证运行镜像一致）
+scipy==1.17.1
+scikit-learn==1.9.0

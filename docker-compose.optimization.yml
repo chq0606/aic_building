@@ -1,0 +1,11 @@
+services:
+  backend:
+    image: aic-building-backend-optimization:v1
+    build:
+      context: .
+      dockerfile: code/backend/Dockerfile.optimization
+  frontend:
+    image: aic-building-frontend-optimization:v1
+    build:
+      context: .
+      dockerfile: code/frontend/Dockerfile.optimization

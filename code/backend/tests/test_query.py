@@ -8,7 +8,7 @@ def test_park_overview(client: TestClient, auth_demo, demo_site_id):
     assert resp.status_code == 200, resp.text
     data = resp.json()["data"]
     assert "building_count" in data
-    assert data["building_count"] == 6  # BDG2 demo 6 栋楼
+    assert data["building_count"] >= 6  # 原六栋保留，可增量补入真实验证建筑
     assert "total_kwh" in data
     assert data["total_kwh"] > 0
 
@@ -35,7 +35,10 @@ def test_buildings_list(client: TestClient, auth_demo, demo_site_id):
     # 响应是 {buildings: [...], ...}, 不是 list 直接
     assert "buildings" in data
     buildings = data["buildings"]
-    assert len(buildings) == 6
+    assert len(buildings) >= 6
+    assert {"Bobcat_assembly_Franklin", "Bobcat_education_Alissa", "Bobcat_education_Dylan",
+            "Bobcat_education_Seth", "Bobcat_public_Angie", "Bobcat_science_Tammy"}.issubset(
+                {b["building_code"] for b in buildings})
     # 验证按 total_kwh 降序
     kwhs = [b["total_kwh"] for b in buildings]
     assert kwhs == sorted(kwhs, reverse=True)

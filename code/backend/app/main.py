@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
-from app.api import anomaly, assistant, auth, data_quality, floor, health, imports, knowledge, prediction, query, reconstruction, retrieval, seed, sites, upload, visual
+from app.api import anomaly, assistant, auth, data_quality, floor, health, imports, knowledge, optimization, prediction, query, reconstruction, retrieval, seed, sites, upload, visual
 # settings 模块名跟 app.core.config 的 Settings 实例 (settings) 同名冲突,
 # 这里起别名 settings_api 避开覆盖。
 from app.api import settings as settings_api
@@ -79,3 +79,4 @@ app.include_router(settings_api.router, prefix="/api/v1")
 app.include_router(assistant.router, prefix="/api/v1")
 app.include_router(prediction.router, prefix="/api/v1")
 app.include_router(floor.router, prefix="/api/v1")
+app.include_router(optimization.router, prefix="/api/v1")

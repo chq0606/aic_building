@@ -77,6 +77,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '数据接入' },
       },
       {
+        path: 'hvac-optimization',
+        name: 'hvac-optimization',
+        component: () => import('@/views/HvacOptimization.vue'),
+        meta: { title: '空调节能' },
+      },
+      {
         path: 'settings',
         name: 'settings',
         component: () => import('@/views/Settings.vue'),

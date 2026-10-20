@@ -32,6 +32,7 @@ import AnomalyOverview from '@/components/analysis/AnomalyOverview.vue'
 import WeatherCorrelation from '@/components/analysis/WeatherCorrelation.vue'
 import DataQualityPanel from '@/components/analysis/DataQualityPanel.vue'
 import PredictionPanel from '@/components/analysis/PredictionPanel.vue'
+import EnergyDiagnosis from '@/components/analysis/EnergyDiagnosis.vue'
 import { Building2, Activity, Gauge, AlertTriangle, RefreshCw, Layers } from 'lucide-vue-next'
 
 const context = useContextStore()
@@ -132,7 +133,7 @@ async function loadSiteName() {
     if (s) siteName.value = s.site_name
   } catch {
     // 拉不到就用 siteId 兜底
-    siteName.value = context.siteId
+    siteName.value = context.siteName || '分析中心'
   }
 }
 
@@ -171,7 +172,7 @@ onMounted(() => {
         <div class="analysis-header__title-wrap">
           <component :is="metricIcon" :size="16" class="analysis-header__icon" />
           <h1 class="analysis-header__title">
-            {{ siteName || '分析中心' }}
+            {{ siteName || context.siteName || '分析中心' }}
           </h1>
           <span class="analysis-header__sub">分析中心</span>
         </div>
@@ -218,6 +219,7 @@ onMounted(() => {
       <button @click="refresh">重试</button>
     </div>
 
+    <EnergyDiagnosis />
     <!-- 2x4 网格 (PredictionPanel 第 7 位, 跨 2 列) -->
     <div class="analysis-grid">
       <BuildingRanking />

@@ -1,0 +1,7 @@
+# Reuse the installed, verified runtime; do not retag the old research image.
+FROM aic_building-backend
+WORKDIR /app
+COPY code/backend/app /app/app
+COPY code/backend/tests /app/tests
+COPY code/backend/fixtures /app/fixtures
+COPY code/backend/requirements.txt /app/requirements.txt

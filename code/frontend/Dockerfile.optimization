@@ -1,0 +1,3 @@
+# dist is produced by the checked local frontend build.
+FROM aic_building-frontend
+COPY code/frontend/dist/ /usr/share/nginx/html/

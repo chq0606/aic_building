@@ -45,6 +45,7 @@ services:
 
   # ─── FastAPI 主服务 ──────────────────────────────────────────────────────
   backend:
+    image: aic-building-backend-optimization:v1
     build:
       context: .
       dockerfile: code/backend/Dockerfile
@@ -137,6 +138,7 @@ services:
 
   # ─── 前端 nginx 静态托管 ───────────────────────────────────────────────
   frontend:
+    image: aic-building-frontend-optimization:v1
     build:
       context: .
       dockerfile: code/frontend/Dockerfile
